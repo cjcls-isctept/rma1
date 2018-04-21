@@ -52,6 +52,8 @@ static const char* textureVertexSource = {
     "{\n"
     "    gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex;\n"
     "}\n"
+    //test
+    //test 412211212
 };
 
 static const char* ballVertexSource = {
