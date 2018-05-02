@@ -225,19 +225,69 @@ void estimateCameraPose(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, double
 {
 
     //3.
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_centre (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
+    cloud_centre->height=1; int step = 2; long index;
+
+    for (int row=0;row<cloud_in->height/4;row+=step){
+
+        for (int col=cloud_in->width/2-50;col<cloud_in->width/2+50;col+=step){
+
+            index = (cloud_in->height-row-1)*cloud_in->width + col;
+
+            cloud_centre->points.push_back(cloud_in->points[index]);
+
+            cloud_centre->width++;
+        }
+    }
     
     //4.
+    pcl::PCDWriter writer;
+
+    writer.write<pcl::PointXYZRGBA> ("Out/cloud_centre.pcd", *cloud_centre, false);
 
 
     //5.
+    pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients ());
 
+    pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
+
+    pcl::SACSegmentation<pcl::PointXYZRGBA> seg;
+
+    seg.setModelType (pcl::SACMODEL_PLANE);
+
+    seg.setMethodType (pcl::SAC_RANSAC);
+
+    seg.setMaxIterations (10000);
+
+    seg.setDistanceThreshold (0.05);
+
+    seg.setInputCloud (cloud_centre);
+
+    seg.segment (*inliers, *coefficients);
 
     //6.
+    double c_a = coefficients->values[0];
+
+    double c_b = coefficients->values[1];
+
+    double c_c = coefficients->values[2];
+
+    double c_d = coefficients->values[3];
+
+    std::cout << "Coefficients a: " << c_a << " b: " << c_b << " c: " << c_c << " d: " << c_d << "." << std::endl;
 
 
     //7.
+    double norm = sqrt(c_a*c_a+c_b*c_b+c_c*c_c);
 
+    c_a = c_a/norm;
+
+    c_b = c_b/norm;
+
+    c_c = c_c/norm;
+
+    std::cout << "Coefficients a: " << c_a << " b: " << c_b << " c: " << c_c << " d: " << c_d << " norm: " << norm << std::endl;
 
     //8.A.
 
@@ -377,11 +427,22 @@ int main(int argsc, char** argsv){
     
     // reading point cloud
     //1.
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+    if (pcl::io::loadPCDFile (argsv[1], *cloud_in) == -1)  {
+
+        PCL_ERROR ("Couldn't read the PCD file \n");
+
+        return (-1);
+
+    }
 
 
     // estimate the camera pose w.r.t. to ground plane
     //2.
+    double camera_pitch, camera_roll, camera_height;
 
+    estimateCameraPose(cloud_in, &camera_pitch, &camera_roll, &camera_height);
 
     // rotate point cloud so as to align the ground plane with a virtual's ground plane
     //10.
