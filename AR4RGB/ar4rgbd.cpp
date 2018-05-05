@@ -184,6 +184,9 @@ bool BallController::handle( const osgGA::GUIEventAdapter& ea,
         return false;
     
     //39.
+    osg::Vec3 v = _ball->getPosition();
+
+    osg::Quat q = _ball->getAttitude();
 
     switch ( ea.getEventType() )
     {
@@ -193,17 +196,40 @@ bool BallController::handle( const osgGA::GUIEventAdapter& ea,
         {
             case 'a': case 'A':
                 //40.
+                if (!(*collidedLeft)){
+                    v.x() += 1.0;
 
+                    q *= osg::Quat(0.2, osg::Y_AXIS, 0.0, osg::X_AXIS, 0.0, osg::Z_AXIS);
+
+                }
                 break;
             case 'd': case 'D':
+                if (!(*collidedLeft)){
+                    v.x() -= 1.0;
 
+                    q *= osg::Quat(0.2, osg::Y_AXIS, 0.0, osg::X_AXIS, 0.0, osg::Z_AXIS);
+
+                }
                 break;
             case 'w': case 'W':
                 //41.
+                if (!(*collidedFront)){
+
+                    v.y() -= 1.0;
+
+                    q *= osg::Quat(0.2, osg::X_AXIS, 0.0, osg::Y_AXIS, 0.0, osg::Z_AXIS);
+
+                }
 
                 break;
             case 's': case 'S':
+                if (!(*collidedFront)){
 
+                    v.y() += 1.0;
+
+                    q *= osg::Quat(0.2, osg::X_AXIS, 0.0, osg::Y_AXIS, 0.0, osg::Z_AXIS);
+
+                }
                 break;
 
             default:
@@ -211,6 +237,9 @@ bool BallController::handle( const osgGA::GUIEventAdapter& ea,
         }
             
             //42.
+            _ball->setPosition(v);
+
+            _ball->setAttitude(q);
 
 
             break;
@@ -290,15 +319,30 @@ void estimateCameraPose(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, double
     std::cout << "Coefficients a: " << c_a << " b: " << c_b << " c: " << c_c << " d: " << c_d << " norm: " << norm << std::endl;
 
     //8.A.
-
+    if (c_c<0){
+    
+    c_a*=-1; c_b*=-1; c_c*=-1;   
+    
+    }
     
     //8.
-
+    *pitch = asin(c_c);
+    
+    *roll = -acos(c_b/cos(*pitch));
+    
+    *height = fabs(c_d);
 
     //8.B.
-
+    if (c_a<0)
+    
+    (*roll) *= -1;    
+    
+    
 
     //9.
+    std::cout << "Camera pitch: " << *pitch * 180/M_PI << " [deg]; Camera roll: " << *roll * 180/M_PI << " [deg]." << std::endl;
+   
+    std::cout << "Camera height: " << *height << std::endl;
 
 }
 
@@ -309,13 +353,29 @@ void rotatePointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
 {
 
     //11.
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_voxelised (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
+    pcl::VoxelGrid<pcl::PointXYZRGBA> voxel_grid;
+
+    voxel_grid.setInputCloud (cloud_in);
+
+    voxel_grid.setLeafSize (0.01, 0.01, 0.01);
+
+    voxel_grid.filter (*cloud_voxelised);
 
     //12.
+    Eigen::Affine3f t1 = pcl::getTransformation (0.0, -camera_height, 0.0, 0.0, 0.0, 0);
 
+    Eigen::Affine3f t2 = pcl::getTransformation (0.0, 0.0, 0.0, -camera_pitch, 0.0, 0.0);
+
+    Eigen::Affine3f t3 = pcl::getTransformation (0.0, 0.0, 0.0, 0.0, 0.0, -camera_roll);
+
+    pcl::transformPointCloud(*cloud_voxelised, *cloud_rotated, t1*t2*t3);
 
     //13.
+    pcl::PCDWriter writer;
 
+    writer.write<pcl::PointXYZRGBA> ("Out/out_rotated.pcd", *cloud_rotated, false);
 
 }
 
@@ -330,9 +390,27 @@ void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
             index2 = (cloud_in->height-row-1)*cloud_in->width + col;
 
             //15.
+            data[index1] = cloud_in->points[index2].r;
+
+            data[index1+1] = cloud_in->points[index2].g;
+
+            data[index1+2] = cloud_in->points[index2].b;
 
 
             //16.
+            if (isnan(cloud_in->points[index2].x)){
+
+                dataDepth[index1] = dataDepth[index1+1] = dataDepth[index1+2] = 0;
+
+            }else{
+
+                dataDepth[index1] = ((cloud_in->points[index2].x+2)/6.0)*255.0;
+
+                dataDepth[index1+1] = ((cloud_in->points[index2].y+2)/6.0)*255.0;
+
+                dataDepth[index1+2] = (cloud_in->points[index2].z/10.0)*255.0;
+
+            }
 
 
         }
@@ -344,48 +422,134 @@ void createVirtualCameras(osg::ref_ptr<osg::Camera> camera1, osg::ref_ptr<osg::C
 {
     
     //25.
+    camera1->setCullingActive( false );
 
+    camera1->setClearMask( 0 );
+
+    camera1->setAllowEventFocus( false );
+
+    camera1->setReferenceFrame( osg::Camera::ABSOLUTE_RF );
+
+    camera1->setRenderOrder( osg::Camera::POST_RENDER, 0);
+
+    camera1->setProjectionMatrix( osg::Matrix::ortho(0.0, 1.0, 0.0, 1.0, 0.5 , 1000) );
+
+    camera1->addChild( orthoTexture.get() );
+
+    osg::StateSet* ss = camera1->getOrCreateStateSet();
+
+    ss->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
 
     //26.
+    camera2->setCullingActive( false );
 
+    camera2->setClearMask( 0 );
+
+    camera2->setAllowEventFocus( false );
+
+    camera2->setReferenceFrame( osg::Camera::ABSOLUTE_RF );
+
+    camera2->setRenderOrder( osg::Camera::POST_RENDER, 1);
+
+    camera2->setProjectionMatrixAsPerspective(50, 640./480., 0.5, 1000);
 
     //27.
+    osg::Matrixd cameraRotation2;
 
+    cameraRotation2.makeRotate(osg::DegreesToRadians(camera_pitch*180/M_PI), osg::Vec3(1,0,0),
+
+                                                         osg::DegreesToRadians(0.0), osg::Vec3(0,1,0),
+
+                                                         osg::DegreesToRadians(0.0), osg::Vec3(0,0,1));
 
     //28.
+    osg::Matrixd cameraRotation3;
 
+    cameraRotation3.makeRotate(osg::DegreesToRadians(0.0), osg::Vec3(1,0,0),
+
+    osg::DegreesToRadians(camera_roll*180/M_PI), osg::Vec3(0,1,0),
+
+    osg::DegreesToRadians(0.0), osg::Vec3(0,0,1));
 
     //29.
+    osg::Matrixd cameraTrans;
 
+    cameraTrans.makeTranslate(0, 0, camera_height*100.0);
 
     //30.
+    osg::Matrix matrix_view;
+
+    matrix_view.makeLookAt(osg::Vec3(0, 0, 0), osg::Vec3(0, -1, 0), osg::Vec3(0, 0, 1));
+
+    osg::Matrixd cameraRotation;
+
+    cameraRotation.makeRotate(osg::DegreesToRadians(180.0), osg::Vec3(0,0,1), osg::DegreesToRadians(-90.0), osg::Vec3(1,0,0), osg::DegreesToRadians(0.0), osg::Vec3(0,1,0) );
 
 
     //31.
-
+    camera2->setViewMatrix(osg::Matrix::inverse(cameraRotation*cameraRotation3*cameraRotation2*cameraTrans));
 
     //32.
+    camera1->setViewport(0, 0, 640, 480);
 
+    camera2->setViewport(0, 0, 640, 480);
 }
 
 
 void	createOrthoTexture(osg::ref_ptr<osg::Geode> orthoTextureGeode,
                            unsigned char* data, unsigned char* dataDepth, int width, int height)
 {
-    //18.
+    //18.    
 
+    osg::Image *image = new osg::Image;
 
-    //19.
+   osg::Image *imageDepth = new osg::Image;
 
+   image->setOrigin(osg::Image::TOP_LEFT);
+
+   imageDepth->setOrigin(osg::Image::TOP_LEFT);
+
+   image->setImage(width, height, 1 , GL_RGB, GL_RGB, GL_UNSIGNED_BYTE,data, osg::Image::NO_DELETE);
+
+   imageDepth->setImage(width, height, 1 , GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, dataDepth, osg::Image::NO_DELETE);
+
+   //19.
+   osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D;
+
+   osg::ref_ptr<osg::Texture2D> texture2 = new osg::Texture2D;
+
+   texture->setImage( image );
+
+   texture2->setImage(imageDepth);
 
     //20.
+   osg::ref_ptr<osg::Drawable> quad = osg::createTexturedQuadGeometry( osg::Vec3(), osg::Vec3(1.0f, 0.0f, 0.0f), osg::Vec3(0.0f, 1.0f, 0.0f) );
 
+   quad->getOrCreateStateSet()->setTextureAttributeAndModes(0, texture.get() );
+
+   quad->getOrCreateStateSet()->setTextureAttributeAndModes(1, texture2.get() );
 
     //21.
+   osg::ref_ptr<osg::Shader> vertShader = new osg::Shader( osg::Shader::VERTEX, textureVertexSource );
 
+   osg::ref_ptr<osg::Shader> fragShader =  new osg::Shader( osg::Shader::FRAGMENT, textureFramentSource );
+
+   osg::ref_ptr<osg::Program> program = new osg::Program;
+
+   program->addShader( fragShader.get() );
+
+   program->addShader( vertShader.get() );
 
     //22.
+   quad->setDataVariance(osg::Object::DYNAMIC);
 
+   quad->getOrCreateStateSet()->setAttributeAndModes( program.get() );
+
+   quad->getOrCreateStateSet()->addUniform(new osg::Uniform("texture", 0 ));
+
+   quad->getOrCreateStateSet()->addUniform(new osg::Uniform("textureDepth", 1 ));
+
+   orthoTextureGeode->addDrawable( quad.get() );
 }
 
 
@@ -400,19 +564,46 @@ void detectCollisions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr ballPath, osg::ref
     std::vector<float> search_radiuses;
 
     //45.
+    pcl::PointXYZRGBA ball;
 
+    ball.x = -ballTransf->getPosition().x()/100.f;
+
+    ball.y = -ballTransf->getPosition().z()/100.f;
+
+    ball.z = -ballTransf->getPosition().y()/100.f;
 
     //46.
+    pcl::PointXYZRGBA ball_view;
 
+    ball_view.x = -ballTransf->getPosition().x()/100.f;
 
+    ball_view.y = ballTransf->getPosition().z()/100.f;
+
+    ball_view.z = ballTransf->getPosition().y()/100.f;
+
+    ballPath->width++;
+
+    ballPath->push_back(ball_view);
     //47.
+    pcl::PointXYZRGBA ballNeighborPoint;
 
+    ballNeighborPoint.x = ball.x - 0.05;
+
+    ballNeighborPoint.y = ball.y - 0.05;
+
+    ballNeighborPoint.z = ball.z;
 
     //48.
-
+kdtree->radiusSearch (ballNeighborPoint, 0.05, search_indexes, search_radiuses);
 
     //49.
+if (search_indexes.size() == 0)
 
+*collidedLeft = false;
+
+else
+
+*collidedLeft = true;
 
 }
 
@@ -437,6 +628,33 @@ int main(int argsc, char** argsv){
 
     }
 
+    /*
+    //added code
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_voxelised (new pcl::PointCloud<pcl::PointXYZ>);
+
+    pcl::VoxelGrid<pcl::PointXYZ> vg;
+
+    vg.setInputCloud (cloud_in);
+
+    vg.setLeafSize (0.01f, 0.01f, 0.01f);
+
+    vg.filter (*cloud_voxelised);
+
+    // two pointers that will be directed to the point clouds we want to render in red and in blue
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_red_thin (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_blue_thick (new pcl::PointCloud<pcl::PointXYZ>);
+
+
+    // -- VIZUALISATION POINTERS (change it to visualise the various point clouds)
+    //0.
+    cloud_red_thin = cloud_in;
+
+    cloud_blue_thick = cloud_voxelised;
+
+    */
+    //end of added code
+
+
 
     // estimate the camera pose w.r.t. to ground plane
     //2.
@@ -446,47 +664,92 @@ int main(int argsc, char** argsv){
 
     // rotate point cloud so as to align the ground plane with a virtual's ground plane
     //10.
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+    rotatePointCloud(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height);
 
     // go through the point cloud and generate a RGB image and a range image
     //14.
+    int size = cloud_in->height*cloud_in->width*3;
+
+   unsigned char* data = (unsigned char*)calloc(size,sizeof(unsigned char));
+
+   unsigned char* dataDepth = (unsigned char*)calloc(size,sizeof(unsigned char));
+
+   createImageFromPointCloud(cloud_in, data, dataDepth);
+
+
 
 
     // create a texture from the RGB image and use depth data to fill the z-buffer
     //17.
+   osg::ref_ptr<osg::Geode> orthoTextureGeode = new osg::Geode;
 
+   createOrthoTexture(orthoTextureGeode, data, dataDepth, cloud_in->width, cloud_in->height);
 
     // create an orthographic camera imaging the texture and a perspective camera based on the camera's pose and intrinsics
     //24.
+   osg::ref_ptr<osg::Camera> camera1 = new osg::Camera;
+
+   osg::ref_ptr<osg::Camera> camera2 = new osg::Camera;
+
+   createVirtualCameras(camera1, camera2, orthoTextureGeode, camera_pitch, camera_roll, camera_height);
+
 
 
     // add the two cameras to the scene's root node
     //33.
+   osg::ref_ptr<osg::Group> root = new osg::Group;
+
+   root->addChild( camera1.get() );
+
+   root->addChild( camera2.get() );
 
 
     // create a dynamic ball node alongside its shadow
     //36.
+   osg::ref_ptr<osg::PositionAttitudeTransform> ballTransf = new osg::PositionAttitudeTransform;
+
+   osg::ref_ptr<osg::PositionAttitudeTransform> shadowTransf = new osg::PositionAttitudeTransform;
+
+   CreateBall(ballTransf, shadowTransf);
 
 
     // run a controller to allow the user to control the ball with the keyboard
     //37.
-
+    osg::ref_ptr<BallController> ctrler =  new BallController( ballTransf.get(), &collidedLeft, &collidedRight, &collidedFront, &collidedBack, &collidedBelow);
 
     // force the perspective camera look at the ball and the shadow
     //38.
+    camera2->addChild( ballTransf );
+
+    camera2->addChild( shadowTransf );
 
 
     // create a root's viewer
     //34.
+    osgViewer::Viewer viewer;
 
+    viewer.setUpViewInWindow(0, 0, 640, 480);
+
+    viewer.setSceneData( root.get() );
 
     //38.A.
-    
+    viewer.addEventHandler( ctrler.get() );
+
     // create a kdtree from the point cloud in order to speed up collision detection
     //44.
+    pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr kdtree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
 
+    kdtree->setInputCloud (cloud_rotated);
 
     //35.
+   while (!viewer.done() ){
+   //43.
+detectCollisions(ballPath, ballTransf, kdtree, &collidedLeft, &collidedRight, &collidedFront, &collidedBack, &collidedBelow);
+   viewer.frame();
 
+   }
 
 
     if (ballPath->size() > 0)
