@@ -258,9 +258,9 @@ void estimateCameraPose(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, double
 
     cloud_centre->height=1; int step = 2; long index;
 
-    for (int row=0;row<cloud_in->height/4;row+=step){
+    for (int row=0;row<cloud_in->height/1;row+=step){
 
-        for (int col=cloud_in->width/2-50;col<cloud_in->width/2+50;col+=step){
+        for (int col=cloud_in->width/2-300;col<cloud_in->width/2+300;col+=step){
 
             index = (cloud_in->height-row-1)*cloud_in->width + col;
 
@@ -372,10 +372,38 @@ void rotatePointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
 
     pcl::transformPointCloud(*cloud_voxelised, *cloud_rotated, t1*t2*t3);
 
+
+    //new code
+    //filtrar pontos com altura(y) superior a um treshold
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2 (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+  //  cloud_rotated_2->height=10;
+    int step = 2;long index=0;
+   // for (int row=0;row<cloud_rotated->height/1;row+=step){
+
+     //   for (int col=cloud_rotated->width/2-270;col<cloud_rotated->width/2+270;col+=step){
+
+                //index = (cloud_rotated->height-row-1)*cloud_rotated->width + col;
+
+
+               // cloud_rotated_2->points.push_back(cloud_rotated->points[index]);
+
+              //  cloud_rotated_2->width++;
+
+                for (size_t i = 0; i < cloud_rotated->points.size(); i++)
+                      if (cloud_rotated->points[i].y < 1.0)
+                        cloud_rotated_2->points.push_back (cloud_rotated->points[i]);
+
+       // }
+                outCld->width = 1;
+                outCld->height = outCld->points.size();
+  //  }
+    //end of new code
+
     //13.
     pcl::PCDWriter writer;
 
-    writer.write<pcl::PointXYZRGBA> ("Out/out_rotated.pcd", *cloud_rotated, false);
+    writer.write<pcl::PointXYZRGBA> ("Out/out_rotated.pcd", *cloud_rotated_2, false);
 
 }
 
@@ -398,12 +426,13 @@ void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
 
 
             //16.
+            //se ele nao tiver info da depth do ponto, mete a zeros
             if (isnan(cloud_in->points[index2].x)){
 
                 dataDepth[index1] = dataDepth[index1+1] = dataDepth[index1+2] = 0;
 
             }else{
-
+            //se nao, vai la buscar os calor xyz
                 dataDepth[index1] = ((cloud_in->points[index2].x+2)/6.0)*255.0;
 
                 dataDepth[index1+1] = ((cloud_in->points[index2].y+2)/6.0)*255.0;
