@@ -1,0 +1,1 @@
+/mnt/hgfs/Clouds/AR4RGB/Build/CMakeFiles/ar4rgbd.dir
