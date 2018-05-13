@@ -67,6 +67,7 @@
 #include <sstream>
 
 pcl::visualization::PCLVisualizer *viewer;
+//double dim_vec[4];
 
 static const char* textureVertexSource = {
     "varying vec3 normal;\n"
@@ -498,8 +499,34 @@ double calculate_average(double a, double b){
     return (a+b)/2;
 }
 
+
+
+pcl::PointCloud<pcl::PointXYZRGBA>::Ptr clean_n_rotate_cloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
+                                                             pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated,
+                                                             double camera_pitch, double camera_roll, double camera_height){
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_voxelised (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+    pcl::VoxelGrid<pcl::PointXYZRGBA> voxel_grid;
+
+    voxel_grid.setInputCloud (cloud_in);
+
+    voxel_grid.setLeafSize (0.01, 0.01, 0.01);
+
+    voxel_grid.filter (*cloud_voxelised);
+
+
+    Eigen::Affine3f t1 = pcl::getTransformation (0.0, -camera_height, 0.0, 0.0, 0.0, 0);
+
+    Eigen::Affine3f t2 = pcl::getTransformation (0.0, 0.0, 0.0, -camera_pitch, 0.0, 0.0);
+
+    Eigen::Affine3f t3 = pcl::getTransformation (0.0, 0.0, 0.0, 0.0, 0.0, -camera_roll);
+
+    pcl::transformPointCloud(*cloud_voxelised, *cloud_rotated, t1*t2*t3);
+}
+
+
 //calcula as dimensoes da mesa
-void calculate_dimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud){
+std::vector<double> calculate_dimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud){
     double var_z1max = 0;
     double var_z2max = 0;
     double var_z3min = cloud->points[0].z;
@@ -510,27 +537,9 @@ void calculate_dimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud){
     double var_x3min = cloud->points[0].x;
     double var_x4min = cloud->points[1].x;
 
-    double z_max=0.01;
-
-    int step = 2; long index;
-
-    for (int row=0;row<cloud->height/1;row+=step){
-
-        //for (int col=cloud->width/2-300;col<cloud->width/2+300;col+=step){
-        int col=0;
-        index = (cloud->height-row-1)*cloud->width + col;
-            if(cloud->points[index].z>z_max){
-                z_max = cloud->points[index].z;
-            }
-
-        //}
-    }
-    cout << "   Output comprimentoZ: "; // prints Output sentence on screen
-    cout << z_max;
 
 
-    //extrai 2 Z max e min
-    /*for (size_t i = 0; i < cloud->points.size(); i++){
+    for (size_t i = 0; i < cloud->points.size(); i++){
         if(cloud->points[i].z>var_z1max)
             var_z1max = cloud->points[i].z;
         else {
@@ -554,41 +563,32 @@ void calculate_dimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud){
         if(cloud->points[i].x<var_x4min)
             var_x4min = cloud->points[i].x;
 
-    }*/
+    }
 
 
-
-/*
     cout << "   Output comprimentoZ: "; // prints Output sentence on screen
     cout << (calculate_average(var_z1max, var_z2max)-(calculate_average(var_z3min, var_z4min)));
     cout << "   Output larguraX: "; // prints Output sentence on screen
-    cout << (calculate_average(var_x1max, var_x2max)-(calculate_average(var_x3min, var_x4min)));*/
+    cout << (calculate_average(var_x1max, var_x2max)-(calculate_average(var_x3min, var_x4min)));
+
+    //devolve as dimensões, na forma xmin,xmax,zmin, zmax
+
+    //dim_vec[4] = new double[4];
+    std::vector<double> dim_vec;
+    dim_vec.push_back(calculate_average(var_x3min, var_x4min));
+    dim_vec.push_back(calculate_average(var_x1max, var_x2max));
+    dim_vec.push_back(calculate_average(var_z3min, var_z4min));
+    dim_vec.push_back(calculate_average(var_z1max, var_z2max));
+
+
+    return dim_vec;
+
+
 }
 
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr clean_n_rotate_cloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
-                                                             pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated,
-                                                             double camera_pitch, double camera_roll, double camera_height){
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_voxelised (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
-    pcl::VoxelGrid<pcl::PointXYZRGBA> voxel_grid;
 
-    voxel_grid.setInputCloud (cloud_in);
-
-    voxel_grid.setLeafSize (0.01, 0.01, 0.01);
-
-    voxel_grid.filter (*cloud_voxelised);
-
-    //12.
-    Eigen::Affine3f t1 = pcl::getTransformation (0.0, -camera_height, 0.0, 0.0, 0.0, 0);
-
-    Eigen::Affine3f t2 = pcl::getTransformation (0.0, 0.0, 0.0, -camera_pitch, 0.0, 0.0);
-
-    Eigen::Affine3f t3 = pcl::getTransformation (0.0, 0.0, 0.0, 0.0, 0.0, -camera_roll);
-
-    pcl::transformPointCloud(*cloud_voxelised, *cloud_rotated, t1*t2*t3);
-}
-
-void manipulatePointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
+std::vector<double> obtainTableDimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
                       pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated,
                       double camera_pitch, double camera_roll, double camera_height)
 {
@@ -601,7 +601,7 @@ void manipulatePointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
 
     //trim para obter segmento com a mesa, e eliminar grande parte do "lixo"
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2  = trim_table(cloud_rotated);
-    //fom do trim
+    //fim do trim
 
     //plano dominante
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only = dominant_plane(cloud_rotated_2);
@@ -610,16 +610,58 @@ void manipulatePointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
     //segmentacao da nuvem para obter só a mesa
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_cleaned = cloud_clusterization(cloud_table_only);
 
-    //cálculo das dimensões
-    calculate_dimensions(cloud_table_cleaned);
-
-
-    //end of new code
-
     //13.
     pcl::PCDWriter writer;
 
     writer.write<pcl::PointXYZRGBA> ("Out/out_rotated2.pcd", *cloud_table_cleaned, false);
+
+
+    //cálculo das dimensões
+    return calculate_dimensions(cloud_table_cleaned);
+
+
+
+}
+
+
+//faz trim de acordo com o valor do Y dado em val_y
+pcl::PointCloud<pcl::PointXYZRGBA>::Ptr trimCloudByY( pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated, double val_y){
+
+    //filtrar pontos com altura(y) superior a um treshold
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2 (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+    //pegar nos pontos da nuvem rodada que tao no segmento vertical da mesa, e colocar numa nuvem nova cloud_rotated_2
+    for (size_t i = 0; i < cloud_rotated->points.size(); i++)
+        if (cloud_rotated->points[i].y < -0.05)
+            cloud_rotated_2->points.push_back (cloud_rotated->points[i]);
+
+    cloud_rotated_2->width = 1;
+    cloud_rotated_2->height = cloud_rotated_2->points.size();
+
+    return cloud_rotated_2;
+
+
+
+}
+
+
+
+void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, double camera_pitch, double camera_roll, double camera_height){
+
+    //std::vector<double> table_dim=obtainTableDimensions();
+
+    //roda e ajusta a nuvem para ficar melhor, e devove a cloud_rotated
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+    clean_n_rotate_cloud(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height);
+
+    //fazer trim à nuvem, de acordo com a altura (Y), para eliminar a mesa e restar tudo o que está a cima do tampo
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed_by_Y = trimCloudByY(cloud_rotated, -1);
+
+    pcl::PCDWriter writer;
+
+    writer.write<pcl::PointXYZRGBA> ("Out/out_trimmed_cloud.pcd", *cloud_trimmed_by_Y, false);
+
 }
 
 void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, unsigned char* data, unsigned char* dataDepth)
@@ -864,6 +906,9 @@ int main(int argsc, char** argsv){
     //1.
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in_arg2 (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+
     if (pcl::io::loadPCDFile (argsv[1], *cloud_in) == -1)  {
 
         PCL_ERROR ("Couldn't read the PCD file \n");
@@ -871,6 +916,14 @@ int main(int argsc, char** argsv){
         return (-1);
 
     }
+    if (pcl::io::loadPCDFile (argsv[2], *cloud_in_arg2) == -1)  {
+
+        PCL_ERROR ("Couldn't read the PCD file \n");
+
+        return (-1);
+
+    }
+
 
     /*
     //added code
@@ -910,7 +963,13 @@ int main(int argsc, char** argsv){
     //10.
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
-    manipulatePointCloud(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height);
+    obtainTableDimensions(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height);
+
+
+//test
+     tableObjectsClusterization(cloud_in_arg2, camera_pitch, camera_roll, camera_height);
+
+//test
 
     // go through the point cloud and generate a RGB image and a range image
     //14.
