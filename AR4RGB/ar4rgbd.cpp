@@ -566,19 +566,19 @@ std::vector<double> calculate_dimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr
     }
 
 
-    cout << "   Output comprimentoZ: "; // prints Output sentence on screen
-    cout << (calculate_average(var_z1max, var_z2max)-(calculate_average(var_z3min, var_z4min)));
-    cout << "   Output larguraX: "; // prints Output sentence on screen
-    cout << (calculate_average(var_x1max, var_x2max)-(calculate_average(var_x3min, var_x4min)));
+   // cout << "   Output comprimentoZ: "; // prints Output sentence on screen
+    //cout << (calculate_average(var_z1max, var_z2max)-(calculate_average(var_z3min, var_z4min)));
+    //cout << "   Output larguraX: "; // prints Output sentence on screen
+    //cout << (calculate_average(var_x1max, var_x2max)-(calculate_average(var_x3min, var_x4min)));
 
     //devolve as dimensões, na forma xmin,xmax,zmin, zmax
 
     //dim_vec[4] = new double[4];
-    std::vector<double> dim_vec;
-    dim_vec.push_back(calculate_average(var_x3min, var_x4min));
-    dim_vec.push_back(calculate_average(var_x1max, var_x2max));
-    dim_vec.push_back(calculate_average(var_z3min, var_z4min));
-    dim_vec.push_back(calculate_average(var_z1max, var_z2max));
+    std::vector<double> dim_vec (4);
+    dim_vec.at(0)=(calculate_average(var_x3min, var_x4min));
+    dim_vec.at(1)=(calculate_average(var_x1max, var_x2max));
+    dim_vec.at(2)=(calculate_average(var_z3min, var_z4min));
+    dim_vec.at(3)=(calculate_average(var_z1max, var_z2max));
 
 
     return dim_vec;
@@ -625,20 +625,28 @@ std::vector<double> obtainTableDimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Pt
 
 
 //faz trim de acordo com o valor do Y dado em val_y
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr trimCloudByY( pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated, double val_y){
+pcl::PointCloud<pcl::PointXYZRGBA>::Ptr trimCloudByYX( pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated, double val_y, std::vector<double> dimensions){
 
     //filtrar pontos com altura(y) superior a um treshold
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2 (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
     //pegar nos pontos da nuvem rodada que tao no segmento vertical da mesa, e colocar numa nuvem nova cloud_rotated_2
     for (size_t i = 0; i < cloud_rotated->points.size(); i++)
-        if (cloud_rotated->points[i].y < -0.05)
-            cloud_rotated_2->points.push_back (cloud_rotated->points[i]);
+        if (cloud_rotated->points[i].y < val_y && cloud_rotated->points[i].x > dimensions.at(0) && cloud_rotated->points[i].x < dimensions.at(1)
+                && cloud_rotated->points[i].z > dimensions.at(2) && cloud_rotated->points[i].z < dimensions.at(3))
+            cloud_trimmed->points.push_back (cloud_rotated->points[i]);
 
-    cloud_rotated_2->width = 1;
-    cloud_rotated_2->height = cloud_rotated_2->points.size();
+    cloud_trimmed->width = 1;
+    cloud_trimmed->height = cloud_trimmed->points.size();
 
-    return cloud_rotated_2;
+
+
+
+
+
+
+
+    return cloud_trimmed;
 
 
 
@@ -646,7 +654,7 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr trimCloudByY( pcl::PointCloud<pcl::Point
 
 
 
-void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, double camera_pitch, double camera_roll, double camera_height){
+void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, double camera_pitch, double camera_roll, double camera_height, std::vector<double> dimensions){
 
     //std::vector<double> table_dim=obtainTableDimensions();
 
@@ -656,7 +664,7 @@ void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in
     clean_n_rotate_cloud(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height);
 
     //fazer trim à nuvem, de acordo com a altura (Y), para eliminar a mesa e restar tudo o que está a cima do tampo
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed_by_Y = trimCloudByY(cloud_rotated, -1);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed_by_Y = trimCloudByYX(cloud_rotated, -0.05, dimensions);
 
     pcl::PCDWriter writer;
 
@@ -963,11 +971,15 @@ int main(int argsc, char** argsv){
     //10.
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
-    obtainTableDimensions(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height);
+ //   std::vector<double> dimensions (10);
+  // obtainTableDimensions(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height);
 
-
+    //cout << "PRIMEIRO VALOROROROROROROR   ";
+    //cout << obtainTableDimensions(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height).at(1);
+    //cout << "   FIMMMMMMMMMMMMMMM";
 //test
-     tableObjectsClusterization(cloud_in_arg2, camera_pitch, camera_roll, camera_height);
+     tableObjectsClusterization(cloud_in_arg2, camera_pitch, camera_roll,
+                                camera_height, obtainTableDimensions(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height));
 
 //test
 
