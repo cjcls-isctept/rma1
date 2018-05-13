@@ -424,6 +424,8 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl
 
         }
 
+       // if(allClusters==true) return cluster_indices;
+
         cloud_cluster->width = cloud_cluster->points.size ();
 
         cloud_cluster->height = 1;
@@ -439,9 +441,73 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl
         }
 
     }
+    //std::vector<pcl::PointIndices> c;
+    //c[0]=cloud_cluster_selected;
     return cloud_cluster_selected;
 
 }
+
+
+//extrai os cluesters todos
+pcl::PointCloud<pcl::PointXYZRGBA>::Ptr getAllClusters(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only, int cluster_num){
+
+    pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
+
+    tree->setInputCloud (cloud_table_only);
+
+    std::vector<pcl::PointIndices> cluster_indices;
+
+    pcl::EuclideanClusterExtraction<pcl::PointXYZRGBA> ec;
+
+    ec.setClusterTolerance (0.02);
+
+    ec.setMinClusterSize (10);
+
+    ec.setMaxClusterSize (25000);
+
+    ec.setSearchMethod (tree);
+
+    ec.setInputCloud (cloud_table_only);
+
+    ec.extract (cluster_indices);
+
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster_selected (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+
+
+        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+        for (int j=0; j < cluster_indices[cluster_num].indices.size(); j++){
+
+            cloud_cluster->points.push_back (cloud_table_only->points[cluster_indices[cluster_num].indices[j]]);
+
+        }
+
+       // if(allClusters==true) return cluster_indices;
+
+        cloud_cluster->width = cloud_cluster->points.size ();
+
+        cloud_cluster->height = 1;
+
+        cloud_cluster->is_dense = true;
+
+
+
+        cloud_cluster->width = cloud_cluster->points.size ();
+
+        cloud_cluster->height = 1;
+
+        cloud_cluster->is_dense = true;
+
+
+    //cout <<"LOLOL" << cluster_indices.at(0) << "LOLLOL";
+    return cloud_cluster;
+
+
+}
+
+
 
 //devolve a nuvem com o plano dominante da nuvem
 pcl::PointCloud<pcl::PointXYZRGBA>::Ptr dominant_plane(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2){
@@ -607,7 +673,7 @@ std::vector<double> obtainTableDimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Pt
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only = dominant_plane(cloud_rotated_2);
     //fim do plano dominante
 
-    //segmentacao da nuvem para obter só a mesa
+    //segmentacao da nuvem para obter só a mesa,
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_cleaned = cloud_clusterization(cloud_table_only);
 
     //13.
@@ -640,15 +706,7 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr trimCloudByYX( pcl::PointCloud<pcl::Poin
     cloud_trimmed->height = cloud_trimmed->points.size();
 
 
-
-
-
-
-
-
     return cloud_trimmed;
-
-
 
 }
 
@@ -668,7 +726,28 @@ void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in
 
     pcl::PCDWriter writer;
 
+    //esta cloud tem os objetos da mesa
     writer.write<pcl::PointXYZRGBA> ("Out/out_trimmed_cloud.pcd", *cloud_trimmed_by_Y, false);
+
+    //
+ //   std::vector<pcl::PointIndices> cluster_indices= getAllClusters(cloud_trimmed_by_Y);
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_1 = getAllClusters(cloud_trimmed_by_Y, 0);
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_2 = getAllClusters(cloud_trimmed_by_Y, 1);
+
+
+   //for (int j=0; j < cluster_indices[0].indices.size(); j++){
+
+       // cloud_1->points.push_back (cloud_1->points[cluster_indices[0].indices[j]]);
+
+
+   // }
+
+
+
+   writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_obj1.pcd", *cloud_1, false);
+
+
 
 }
 
