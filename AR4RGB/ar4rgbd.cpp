@@ -451,6 +451,8 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl
 //extrai os cluesters todos
 pcl::PointCloud<pcl::PointXYZRGBA>::Ptr getAllClusters(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only, int cluster_num){
 
+    cout << "Esta a entrar no metidoodsaasd " << std::endl;
+
     pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
 
     tree->setInputCloud (cloud_table_only);
@@ -471,6 +473,7 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr getAllClusters(pcl::PointCloud<pcl::Poin
 
     ec.extract (cluster_indices);
 
+    cout << "TAMANHO" << cluster_indices.size() << "TAMANHO!! " << std::endl;
 
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster_selected (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
@@ -733,7 +736,7 @@ void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in
  //   std::vector<pcl::PointIndices> cluster_indices= getAllClusters(cloud_trimmed_by_Y);
 
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_1 = getAllClusters(cloud_trimmed_by_Y, 0);
-    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_2 = getAllClusters(cloud_trimmed_by_Y, 1);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_2 = getAllClusters(cloud_trimmed_by_Y, 1);
 
 
    //for (int j=0; j < cluster_indices[0].indices.size(); j++){
@@ -1106,16 +1109,16 @@ int main(int argsc, char** argsv){
 
    osg::ref_ptr<osg::PositionAttitudeTransform> shadowTransf = new osg::PositionAttitudeTransform;
 
-   CreateBall(ballTransf, shadowTransf);
+  CreateBall(ballTransf, shadowTransf);
 
 
     // run a controller to allow the user to control the ball with the keyboard
     //37.
-    osg::ref_ptr<BallController> ctrler =  new BallController( ballTransf.get(), &collidedLeft, &collidedRight, &collidedFront, &collidedBack, &collidedBelow);
+   osg::ref_ptr<BallController> ctrler =  new BallController( ballTransf.get(), &collidedLeft, &collidedRight, &collidedFront, &collidedBack, &collidedBelow);
 
     // force the perspective camera look at the ball and the shadow
     //38.
-    camera2->addChild( ballTransf );
+   camera2->addChild( ballTransf );
 
     camera2->addChild( shadowTransf );
 
@@ -1134,13 +1137,12 @@ int main(int argsc, char** argsv){
     // create a kdtree from the point cloud in order to speed up collision detection
     //44.
     pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr kdtree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
-
-    kdtree->setInputCloud (cloud_rotated);
+   kdtree->setInputCloud (cloud_rotated);
 
     //35.
    while (!viewer.done() ){
    //43.
-detectCollisions(ballPath, ballTransf, kdtree, &collidedLeft, &collidedRight, &collidedFront, &collidedBack, &collidedBelow);
+//detectCollisions(ballPath, ballTransf, kdtree, &collidedLeft, &collidedRight, &collidedFront, &collidedBack, &collidedBelow);
    viewer.frame();
 
    }
