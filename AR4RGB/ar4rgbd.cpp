@@ -573,8 +573,7 @@ double calculate_average(double a, double b){
 }
 
 
-
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr clean_n_rotate_cloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
+void clean_n_rotate_cloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
                                                              pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated,
                                                              double camera_pitch, double camera_roll, double camera_height){
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_voxelised (new pcl::PointCloud<pcl::PointXYZRGBA>);
@@ -596,7 +595,7 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr clean_n_rotate_cloud(pcl::PointCloud<pcl
 
 
     pcl::transformPointCloud(*cloud_voxelised, *cloud_rotated, t1*t2*t3);
-    std::cout << "taansadmanho 1" << cloud_rotated->points.size() << "  tamanho " << std::endl;
+    //std::cout << "taansadmanho 1" << cloud_rotated->points.size() << "  tamanho " << std::endl;
 
 
 }
@@ -821,12 +820,7 @@ void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in
 
 }
 
-void trimm_other_than_table(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed,
-                            std::vector<double>& dimensions){
 
-
-
-}
 
 void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, std::vector<double>& dimensions,
                    double camera_pitch, double camera_roll, double camera_height){
@@ -836,18 +830,21 @@ void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, std::vector
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
     clean_n_rotate_cloud(cloud_in, cloud_rotated , camera_pitch, camera_roll, camera_height);
 
+    std::cout << "taansadmanho 2 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
 
 
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed (new pcl::PointCloud<pcl::PointXYZRGBA>);
-
-  //  std::cout << "taansadmanho " << cloud_in->points.size() << "  tamanho " << std::endl;
-    std::cout << "taansadmanho 2" << cloud_rotated->points.size() << "  tamanho " << std::endl;
+    //std::cout << "taansadmanho " << cloud_in->points.size() << "  tamanho " << std::endl;
     //trimm_other_than_table(cloud_rotated, cloud_trimmed, dimensions);
     //é false, para ignorar tudo o que esta para baixo de 0.05
-    trimCloudByYX(cloud_rotated ,cloud_trimmed,-0.05 , dimensions, false);
+
+    std::cout << "taansadmanho 3 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
 
 
-    //writer.write<pcl::PointXYZRGBA> ("Out/out_trimmed_cloud_test.pcd", *cloud_trimmed, true);
+    trimCloudByYX(cloud_rotated ,cloud_trimmed,-0.05 , dimensions, true);
+
+
+    writer.write<pcl::PointXYZRGBA> ("Out/out_trimmed_cloud_test.pcd", *cloud_trimmed, true);
 
 
 
