@@ -42,7 +42,6 @@
 #include <pcl/filters/passthrough.h>
 #include <pcl/common/transforms.h>
 
-#include <iostream>
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/common/transforms.h>
@@ -62,7 +61,8 @@
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/kdtree/kdtree_flann.h>
 
-#include <string>
+#include <iostream>   // std::cout
+#include <string>     // std::string, std::to_string
 #include <algorithm>
 #include <sstream>
 
@@ -387,7 +387,10 @@ void estimateCameraPose(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, double
 }
 
 //extrai o maior cluster da nuvem de input, devolvendo-o
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only){
+pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only,
+                                                             pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster_selected){
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_temporary (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
     pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
 
@@ -412,7 +415,7 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl
     // Picking the largest cluster (in principle the object of interest)
     int max_size = 0;
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster_selected (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster_selected (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
     for (int i=0; i<cluster_indices.size(); i++){
 
@@ -436,11 +439,13 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl
 
             max_size = cloud_cluster->size();
 
-            cloud_cluster_selected = cloud_cluster;
+            cloud_temporary = cloud_cluster;
 
         }
 
     }
+    cloud_cluster_selected = cloud_temporary;
+      // std::cout<< " dasdaasd "<<cloud_cluster_selected->size() <<" dasdasdasdasd"<< std::endl;
     //std::vector<pcl::PointIndices> c;
     //c[0]=cloud_cluster_selected;
     return cloud_cluster_selected;
@@ -448,10 +453,10 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl
 }
 
 
-//extrai os cluesters todos
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr getAllClusters(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only, int cluster_num){
+//extrai os clusters todos
+void getAllClusters(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only, std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector ){
 
-    cout << "Esta a entrar no metidoodsaasd " << std::endl;
+    //cout << "Esta a entrar no metidoodsaasd " << std::endl;
 
     pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
 
@@ -473,39 +478,38 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr getAllClusters(pcl::PointCloud<pcl::Poin
 
     ec.extract (cluster_indices);
 
-    cout << "TAMANHO" << cluster_indices.size() << "TAMANHO!! " << std::endl;
+    //cout << "TAMANHO  " << cluster_indices.size() << " TAMANHO!! " << std::endl;
 
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster_selected (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
-
+    for (int i=0; i<cluster_indices.size(); i++){
 
         pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
-        for (int j=0; j < cluster_indices[cluster_num].indices.size(); j++){
+        for (int j=0; j < cluster_indices[i].indices.size(); j++){
 
-            cloud_cluster->points.push_back (cloud_table_only->points[cluster_indices[cluster_num].indices[j]]);
+            cloud_cluster->points.push_back (cloud_table_only->points[cluster_indices[i].indices[j]]);
 
         }
 
-       // if(allClusters==true) return cluster_indices;
-
         cloud_cluster->width = cloud_cluster->points.size ();
 
         cloud_cluster->height = 1;
 
         cloud_cluster->is_dense = true;
 
+       // std::cout <<"  antes "<< std::endl;
+
+       // std::cout <<"tamanho do cluster  " << i << "  " << cloud_cluster->points.size () << " capacity" << std::endl;
+
+        clusters_vector.push_back(cloud_cluster);
+
+        //std::cout <<"  DEPOIS "<< std::endl;
 
 
-        cloud_cluster->width = cloud_cluster->points.size ();
-
-        cloud_cluster->height = 1;
-
-        cloud_cluster->is_dense = true;
-
-
+    }
     //cout <<"LOLOL" << cluster_indices.at(0) << "LOLLOL";
-    return cloud_cluster;
+    //return cloud_cluster;
 
 
 }
@@ -513,7 +517,7 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr getAllClusters(pcl::PointCloud<pcl::Poin
 
 
 //devolve a nuvem com o plano dominante da nuvem
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr dominant_plane(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2){
+void dominant_plane(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only ){
     pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
 
     pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
@@ -532,7 +536,7 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr dominant_plane(pcl::PointCloud<pcl::Poin
 
     seg.segment (*inliers, *coefficients);
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
     pcl::ExtractIndices<pcl::PointXYZRGBA> extract;
 
@@ -544,13 +548,13 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr dominant_plane(pcl::PointCloud<pcl::Poin
 
     extract.filter (*cloud_table_only);
 
-    return cloud_table_only;
+    //return cloud_table_only;
 }
 
 //corta a nuvem em ordem a Y(vertical), de forma a que sobre a nuvem com a mesa
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr trim_table(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated){
+void trim_table(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2 ){
     //filtrar pontos com altura(y) superior a um treshold
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2 (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2 (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
     //pegar nos pontos da nuvem rodada que tao no segmento vertical da mesa, e colocar numa nuvem nova cloud_rotated_2
     for (size_t i = 0; i < cloud_rotated->points.size(); i++)
@@ -560,7 +564,7 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr trim_table(pcl::PointCloud<pcl::PointXYZ
     cloud_rotated_2->width = 1;
     cloud_rotated_2->height = cloud_rotated_2->points.size();
 
-    return cloud_rotated_2;
+
 }
 
 
@@ -595,47 +599,34 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr clean_n_rotate_cloud(pcl::PointCloud<pcl
 
 
 //calcula as dimensoes da mesa
-std::vector<double> calculate_dimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud){
-    double var_z1max = 0;
-    double var_z2max = 0;
-    double var_z3min = cloud->points[0].z;
-    double var_z4min = cloud->points[1].z;
+void calculate_dimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud, std::vector<double>& dim_vec){
+    double var_Zmax = 0;
+    double var_Zmin = 1;
 
-    double var_x1max = 0;
-    double var_x2max = 0;
-    double var_x3min = cloud->points[0].x;
-    double var_x4min = cloud->points[1].x;
+    double var_Xmax = 0;
+    double var_Xmin = 1;
 
 
 
     for (size_t i = 0; i < cloud->points.size(); i++){
-        if(cloud->points[i].z>var_z1max)
-            var_z1max = cloud->points[i].z;
-        else {
-            var_z2max = cloud->points[i].z;
-        }
+        if(cloud->points[i].z>var_Zmax)
+            var_Zmax = cloud->points[i].z;
 
-        if(cloud->points[i].z<var_z3min)
-            var_z3min = cloud->points[i].z;
-        if(cloud->points[i].z<var_z4min)
-            var_z4min = cloud->points[i].z;
+        if(cloud->points[i].z<var_Zmin)
+            var_Zmin = cloud->points[i].z;
 
+        if(cloud->points[i].x>var_Xmax)
+            var_Xmax = cloud->points[i].x;
 
-        if(cloud->points[i].x>var_x1max)
-            var_x1max = cloud->points[i].x;
-        else {
-            var_x2max = cloud->points[i].x;
-        }
+        if(cloud->points[i].x<var_Xmin)
+            var_Xmin = cloud->points[i].x;
 
-        if(cloud->points[i].x<var_x3min)
-            var_x3min = cloud->points[i].x;
-        if(cloud->points[i].x<var_x4min)
-            var_x4min = cloud->points[i].x;
 
     }
 
 
-   // cout << "   Output comprimentoZ: "; // prints Output sentence on screen
+    std::cout << "   Output comprimentoZ: " << var_Zmax - var_Zmin << std::endl;
+    std::cout << "   Output comprimentoX: " << var_Xmax - var_Xmin << std::endl;
     //cout << (calculate_average(var_z1max, var_z2max)-(calculate_average(var_z3min, var_z4min)));
     //cout << "   Output larguraX: "; // prints Output sentence on screen
     //cout << (calculate_average(var_x1max, var_x2max)-(calculate_average(var_x3min, var_x4min)));
@@ -643,23 +634,24 @@ std::vector<double> calculate_dimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr
     //devolve as dimensões, na forma xmin,xmax,zmin, zmax
 
     //dim_vec[4] = new double[4];
-    std::vector<double> dim_vec (4);
-    dim_vec.at(0)=(calculate_average(var_x3min, var_x4min));
-    dim_vec.at(1)=(calculate_average(var_x1max, var_x2max));
-    dim_vec.at(2)=(calculate_average(var_z3min, var_z4min));
-    dim_vec.at(3)=(calculate_average(var_z1max, var_z2max));
+    //std::vector<double> dim_vec (4);
+    dim_vec.push_back(var_Xmin);
+    dim_vec.push_back(var_Xmax);
+    dim_vec.push_back(var_Zmin);
+    dim_vec.push_back(var_Zmax);
 
 
-    return dim_vec;
+
+    //return dim_vec;
 
 
 }
 
 
 
-std::vector<double> obtainTableDimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
+void obtainTableDimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
                       pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated,
-                      double camera_pitch, double camera_roll, double camera_height)
+                      double camera_pitch, double camera_roll, double camera_height, std::vector<double>& dime_vec)
 {
 
     //new code
@@ -667,37 +659,89 @@ std::vector<double> obtainTableDimensions(pcl::PointCloud<pcl::PointXYZRGBA>::Pt
     //roda e voxiliza a nuvem, diminuindo possivel excessiva densidade, e roda, alinhando o tampo da mesa com o eixo Z
     clean_n_rotate_cloud(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height);
 
-
     //trim para obter segmento com a mesa, e eliminar grande parte do "lixo"
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2  = trim_table(cloud_rotated);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated_2 (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    trim_table(cloud_rotated, cloud_rotated_2);
     //fim do trim
 
+
     //plano dominante
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only = dominant_plane(cloud_rotated_2);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    dominant_plane(cloud_rotated_2, cloud_table_only);
     //fim do plano dominante
 
     //segmentacao da nuvem para obter só a mesa,
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_cleaned = cloud_clusterization(cloud_table_only);
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_cleaned (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    //cloud_clusterization(cloud_table_only, cloud_table_cleaned);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_cleaned=cloud_clusterization(cloud_table_only, cloud_table_cleaned);
 
     //13.
     pcl::PCDWriter writer;
 
-    writer.write<pcl::PointXYZRGBA> ("Out/out_rotated2.pcd", *cloud_table_cleaned, false);
+    writer.write<pcl::PointXYZRGBA> ("Out/out_rotated2.pcd", *cloud_table_only, false);
+
+
+  //  std::cout << "TAMANHO DA NUVEM  " << cloud_table_cleaned->size() << " FFFFF" << std::endl;
+    calculate_dimensions(cloud_table_cleaned, dime_vec);
+  //   std::cout<< " dasdaasd "<< dime_vec.capacity() <<" dasdasdasdasd"<< std::endl;
+
 
 
     //cálculo das dimensões
-    return calculate_dimensions(cloud_table_cleaned);
+    //return calculate_dimensions(cloud_table_cleaned);
 
 
 
 }
 
+void colorAverage(std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector){
+
+    //
+
+    for(int i=0; i<clusters_vector.size(); i++){
+
+        int r=0;
+        int g=0;
+        int b=0;
+
+        for(int j=0; j<clusters_vector[i]->points.size(); j++){
+
+                //std::cout<< " valor double ou int "<< (int)clusters_vector[0]->points[1].r <<" dasdasdasdasd"<< std::endl;
+            r=r+(int)clusters_vector[i]->points[j].r;
+            g=g+(int)clusters_vector[i]->points[j].g;
+            b=b+(int)clusters_vector[i]->points[j].b;
+
+        }
+        r=r/clusters_vector[i]->points.size();
+        g=g/clusters_vector[i]->points.size();
+        b=b/clusters_vector[i]->points.size();
+
+        for(int j=0; j<clusters_vector[i]->points.size(); j++){
+
+                //std::cout<< " valor double ou int "<< (int)clusters_vector[0]->points[1].r <<" dasdasdasdasd"<< std::endl;
+            clusters_vector[i]->points[j].r=r;
+            clusters_vector[i]->points[j].g=g;
+            clusters_vector[i]->points[j].b=b;
+
+
+        }
+
+
+
+    }
+
+}
+
+
+
+
 
 //faz trim de acordo com o valor do Y dado em val_y
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr trimCloudByYX( pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated, double val_y, std::vector<double> dimensions){
+void trimCloudByYX( pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed,
+                                                       double val_y, std::vector<double>& dimensions){
 
     //filtrar pontos com altura(y) superior a um treshold
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
     //pegar nos pontos da nuvem rodada que tao no segmento vertical da mesa, e colocar numa nuvem nova cloud_rotated_2
     for (size_t i = 0; i < cloud_rotated->points.size(); i++)
@@ -709,13 +753,14 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr trimCloudByYX( pcl::PointCloud<pcl::Poin
     cloud_trimmed->height = cloud_trimmed->points.size();
 
 
-    return cloud_trimmed;
-
 }
 
 
 
-void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, double camera_pitch, double camera_roll, double camera_height, std::vector<double> dimensions){
+
+
+void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, double camera_pitch,
+                                double camera_roll, double camera_height, std::vector<double>& dimensions, std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector){
 
     //std::vector<double> table_dim=obtainTableDimensions();
 
@@ -725,7 +770,9 @@ void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in
     clean_n_rotate_cloud(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height);
 
     //fazer trim à nuvem, de acordo com a altura (Y), para eliminar a mesa e restar tudo o que está a cima do tampo
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed_by_Y = trimCloudByYX(cloud_rotated, -0.05, dimensions);
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed_by_Y (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    trimCloudByYX(cloud_rotated ,cloud_trimmed_by_Y ,-0.05, dimensions);
 
     pcl::PCDWriter writer;
 
@@ -733,26 +780,51 @@ void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in
     writer.write<pcl::PointXYZRGBA> ("Out/out_trimmed_cloud.pcd", *cloud_trimmed_by_Y, false);
 
     //
- //   std::vector<pcl::PointIndices> cluster_indices= getAllClusters(cloud_trimmed_by_Y);
+   // std::vector<pcl::PointIndices> cluster_indices= getAllClusters(cloud_trimmed_by_Y);
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_1 = getAllClusters(cloud_trimmed_by_Y, 0);
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_2 = getAllClusters(cloud_trimmed_by_Y, 1);
+    // vetor clusters_vector irá conter os clusters dos objetos na mesa
 
-
-   //for (int j=0; j < cluster_indices[0].indices.size(); j++){
-
-       // cloud_1->points.push_back (cloud_1->points[cluster_indices[0].indices[j]]);
+    getAllClusters(cloud_trimmed_by_Y, clusters_vector);
 
 
-   // }
+  //  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster1 = clusters_vector[0];
+
+    colorAverage(clusters_vector);
+
+
+    //escrever num .pcd os clusters dos objetos na mesa, separadas. cada um numa nuvem
+    std::string path="Out/out_cloud_obj";
+    std::string extension=".pcd";
+    for(int i=0; i<clusters_vector.size(); i++){
+        std::string iteration=boost::to_string(i);
+        std::string file= path+iteration;
+        file=file+extension;
+        writer.write<pcl::PointXYZRGBA> (file, *clusters_vector[i], false);
+    }
+
+
+}
 
 
 
-   writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_obj1.pcd", *cloud_1, false);
+void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, std::vector<double>& dimensions,
+                   double camera_pitch, double camera_roll, double camera_height){
+
+    pcl::PCDWriter writer;
+    //roda e ajusta a nuvem para ficar melhor, e devove a cloud_rotated
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    clean_n_rotate_cloud(cloud_in, cloud_rotated , camera_pitch, camera_roll, camera_height);
+
+    writer.write<pcl::PointXYZRGBA> ("Out/out_trimmed_cloud_test.pcd", *cloud_rotated, false);
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    trimm_other_than_table(cloud_rotated, cloud_trimmed, dimensions);
+
 
 
 
 }
+
 
 void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, unsigned char* data, unsigned char* dataDepth)
 {
@@ -792,6 +864,9 @@ void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
         }
     }
 }
+
+
+
 
 void createVirtualCameras(osg::ref_ptr<osg::Camera> camera1, osg::ref_ptr<osg::Camera> camera2, osg::ref_ptr<osg::Geode> orthoTexture,
                           double camera_pitch, double camera_roll, double camera_height)
@@ -930,7 +1005,6 @@ void	createOrthoTexture(osg::ref_ptr<osg::Geode> orthoTextureGeode,
 
 
 
-
 void detectCollisions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr ballPath, osg::ref_ptr<osg::PositionAttitudeTransform> ballTransf,
                       pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr kdtree,
                       bool *collidedLeft, bool *collidedRight, bool *collidedFront, bool *collidedBack, bool *collidedBelow)
@@ -983,6 +1057,8 @@ else
 
 }
 
+
+
 int main(int argsc, char** argsv){
     
     // create a point cloud to keep track of the ball's path
@@ -998,21 +1074,44 @@ int main(int argsc, char** argsv){
 
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in_arg2 (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in_arg3 (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+
+
+//DEBUG
+    //../Data/Clouds/seq_3/background_no_objs_3/129976532142.pcd ../Data/Clouds/seq_3/background_objs_3/129976479791.pcd
+
+    //argsv[1]="../Data/Clouds/seq_3/background_no_objs_3/129976532142.pcd";
+    //argsv[2]="../Data/Clouds/seq_3/background_objs_3/129976479791.pcd";
+
+//DEBUG
+
+
+
+
 
     if (pcl::io::loadPCDFile (argsv[1], *cloud_in) == -1)  {
 
-        PCL_ERROR ("Couldn't read the PCD file \n");
+        PCL_ERROR ("Couldn't read the PCD file 1 \n");
 
         return (-1);
 
     }
     if (pcl::io::loadPCDFile (argsv[2], *cloud_in_arg2) == -1)  {
 
-        PCL_ERROR ("Couldn't read the PCD file \n");
+        PCL_ERROR ("Couldn't read the PCD file 2 \n");
 
         return (-1);
 
     }
+    if (pcl::io::loadPCDFile (argsv[3], *cloud_in_arg3) == -1)  {
+
+        PCL_ERROR ("Couldn't read the PCD file 3 \n");
+
+        return (-1);
+
+    }
+
 
 
     /*
@@ -1049,21 +1148,48 @@ int main(int argsc, char** argsv){
 
     estimateCameraPose(cloud_in, &camera_pitch, &camera_roll, &camera_height);
 
+
+
+
+
+
+
+
     // rotate point cloud so as to align the ground plane with a virtual's ground plane
     //10.
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
- //   std::vector<double> dimensions (10);
-  // obtainTableDimensions(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height);
 
+
+    std::vector<double> dimensions;
+
+    obtainTableDimensions(cloud_in, cloud_rotated ,camera_pitch, camera_roll, camera_height, dimensions);
+    //std::cout << "LOLO " << dimensions[0] << "   WOWOWO" << std::endl;
     //cout << "PRIMEIRO VALOROROROROROROR   ";
     //cout << obtainTableDimensions(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height).at(1);
     //cout << "   FIMMMMMMMMMMMMMMM";
 //test
-     tableObjectsClusterization(cloud_in_arg2, camera_pitch, camera_roll,
-                                camera_height, obtainTableDimensions(cloud_in, cloud_rotated, camera_pitch, camera_roll, camera_height));
+
+    std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector;
+
+    tableObjectsClusterization(cloud_in_arg2, camera_pitch, camera_roll,
+                               camera_height, dimensions, clusters_vector);
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster1 = clusters_vector[0];
+
+
+    handDetection(cloud_in_arg3, dimensions, camera_pitch, camera_roll, camera_height);
+
+
+
+
+
+
+
 
 //test
+
+
 
     // go through the point cloud and generate a RGB image and a range image
     //14.
