@@ -387,14 +387,14 @@ void estimateCameraPose(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, double
 }
 
 //extrai o maior cluster da nuvem de input, devolvendo-o
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_table_only,
+pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_input,
                                                              pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster_selected){
 
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_temporary (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
     pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
 
-    tree->setInputCloud (cloud_table_only);
+    tree->setInputCloud (cloud_input);
 
     std::vector<pcl::PointIndices> cluster_indices;
 
@@ -408,7 +408,7 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl
 
     ec.setSearchMethod (tree);
 
-    ec.setInputCloud (cloud_table_only);
+    ec.setInputCloud (cloud_input);
 
     ec.extract (cluster_indices);
 
@@ -423,7 +423,7 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl
 
         for (int j=0; j < cluster_indices[i].indices.size(); j++){
 
-            cloud_cluster->points.push_back (cloud_table_only->points[cluster_indices[i].indices[j]]);
+            cloud_cluster->points.push_back (cloud_input->points[cluster_indices[i].indices[j]]);
 
         }
 
@@ -445,12 +445,80 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_clusterization(pcl::PointCloud<pcl
 
     }
     cloud_cluster_selected = cloud_temporary;
-      // std::cout<< " dasdaasd "<<cloud_cluster_selected->size() <<" dasdasdasdasd"<< std::endl;
+     std::cout<< " dasdaasd "<<cloud_cluster_selected->points.size() <<" dasdasdasdasd"<< std::endl;
     //std::vector<pcl::PointIndices> c;
     //c[0]=cloud_cluster_selected;
     return cloud_cluster_selected;
 
 }
+
+
+//SEM RETURN extrai o maior cluster da nuvem de input, devolvendo-o
+void cloud_cluster(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_input,
+                                                             pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &cloud_cluster_selected){
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_temporary (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+    pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
+
+    tree->setInputCloud (cloud_input);
+
+    std::vector<pcl::PointIndices> cluster_indices;
+
+    pcl::EuclideanClusterExtraction<pcl::PointXYZRGBA> ec;
+
+    ec.setClusterTolerance (0.02);
+
+    ec.setMinClusterSize (10);
+
+    ec.setMaxClusterSize (25000);
+
+    ec.setSearchMethod (tree);
+
+    ec.setInputCloud (cloud_input);
+
+    ec.extract (cluster_indices);
+
+    // Picking the largest cluster (in principle the object of interest)
+    int max_size = 0;
+
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster_selected (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+    for (int i=0; i<cluster_indices.size(); i++){
+
+        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+        for (int j=0; j < cluster_indices[i].indices.size(); j++){
+
+            cloud_cluster->points.push_back (cloud_input->points[cluster_indices[i].indices[j]]);
+
+        }
+
+       // if(allClusters==true) return cluster_indices;
+
+        cloud_cluster->width = cloud_cluster->points.size ();
+
+        cloud_cluster->height = 1;
+
+        cloud_cluster->is_dense = true;
+
+        if (cloud_cluster->size() > max_size){
+
+            max_size = cloud_cluster->size();
+
+            cloud_cluster_selected = cloud_cluster;
+
+        }
+
+    }
+    //cloud_cluster_selected = cloud_temporary;
+    std::cout<< " dasdaasd "<<cloud_cluster_selected->points.size() <<" dasdasdasdasd"<< std::endl;
+    //std::vector<pcl::PointIndices> c;
+    //c[0]=cloud_cluster_selected;
+
+
+}
+
 
 
 //extrai os clusters todos
@@ -775,7 +843,8 @@ void trimCloudByYX( pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated, pcl::
 
 
 void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, double camera_pitch,
-                                double camera_roll, double camera_height, std::vector<double>& dimensions, std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector){
+                                double camera_roll, double camera_height, std::vector<double>& dimensions,
+                                std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector){
 
     //std::vector<double> table_dim=obtainTableDimensions();
 
@@ -822,6 +891,13 @@ void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in
 
 
 
+
+void getObjectInHand(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_only, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_object_in_hand){
+
+}
+
+
+
 void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, std::vector<double>& dimensions,
                    double camera_pitch, double camera_roll, double camera_height){
 
@@ -830,23 +906,32 @@ void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, std::vector
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
     clean_n_rotate_cloud(cloud_in, cloud_rotated , camera_pitch, camera_roll, camera_height);
 
-    std::cout << "taansadmanho 2 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
+    //std::cout << "taansadmanho 2 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
 
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_objects_w_arm (new pcl::PointCloud<pcl::PointXYZRGBA>);
     //std::cout << "taansadmanho " << cloud_in->points.size() << "  tamanho " << std::endl;
     //trimm_other_than_table(cloud_rotated, cloud_trimmed, dimensions);
     //é false, para ignorar tudo o que esta para baixo de 0.05
 
-    std::cout << "taansadmanho 3 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
+   // std::cout << "taansadmanho 3 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
 
 
-    trimCloudByYX(cloud_rotated ,cloud_trimmed,-0.05 , dimensions, true);
+    trimCloudByYX(cloud_rotated ,cloud_objects_w_arm,-0.05 , dimensions, true);
 
 
-    writer.write<pcl::PointXYZRGBA> ("Out/out_trimmed_cloud_test.pcd", *cloud_trimmed, true);
+   // writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_objects_w_arm.pcd", *cloud_objects_w_arm, true);
+
+    //agora temos o cluster maior, que é o braço
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_only (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    cloud_cluster(cloud_objects_w_arm, cloud_arm_only);
+
+    //writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_arm_only.pcd", *cloud_arm_only, true);
 
 
+    //agora apanhar o que ta na mao
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_object_in_hand (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    getObjectInHand(cloud_arm_only, cloud_object_in_hand);
 
 }
 
