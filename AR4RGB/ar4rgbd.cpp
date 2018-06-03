@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Mixed Reality and Applications
  *
  * Pedro Santana
@@ -60,6 +60,7 @@
 
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/search/kdtree.h>
 
 #include <iostream>   // std::cout
 #include <string>     // std::string, std::to_string
@@ -892,14 +893,53 @@ void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in
 
 
 
-void getObjectInHand(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_only, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_object_in_hand){
+void getObjectInHand(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_only, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_object){
+     pcl::PCDWriter writer;
+
+    int closest_index;
+    double z_min=100000;
+
+    for(int i =0; i<cloud_arm_only->size(); i++){
+        if(cloud_arm_only->points[i].z<z_min){
+            z_min=cloud_arm_only->points[i].z;
+            closest_index=i;
+        }
+    }
+
+    //std::cout << " z minimmo " << cloud_arm_only->points[closest_index].z << "  zminimo" << std::endl;
+
+//ccriar a arvore
+    pcl::search::KdTree<pcl::PointXYZRGBA> kdtree;
+
+    kdtree.setInputCloud (cloud_arm_only);
+
+    std::vector<int> pointIdxSearch;
+
+    std::vector<float> pointSquaredDistance;
+
+    kdtree.radiusSearch (cloud_arm_only->points[closest_index], 0.1, pointIdxSearch, pointSquaredDistance);
+
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_object (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+    cloud_object->width = pointIdxSearch.size();
+
+    cloud_object->height = 1;
+
+    cloud_object->is_dense = true;
+
+    for (int i=0; i<pointIdxSearch.size(); i++)
+           cloud_object->push_back(cloud_arm_only->points[pointIdxSearch[i]]);
+    //std::cout << " print do tamanho do obj " << cloud_object->points.size() << "  tamanho " << std::endl;
+    writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_object.pcd", *cloud_object, true);
+
+
 
 }
 
 
 
-void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, std::vector<double>& dimensions,
-                   double camera_pitch, double camera_roll, double camera_height){
+void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& cloud_arm_w_object, std::vector<double>& dimensions,
+                   double camera_pitch, double camera_roll, double camera_height, bool isEraser){
 
     pcl::PCDWriter writer;
     //roda e ajusta a nuvem para ficar melhor, e devove a cloud_rotated
@@ -923,15 +963,31 @@ void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, std::vector
    // writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_objects_w_arm.pcd", *cloud_objects_w_arm, true);
 
     //agora temos o cluster maior, que é o braço
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_only (new pcl::PointCloud<pcl::PointXYZRGBA>);
-    cloud_cluster(cloud_objects_w_arm, cloud_arm_only);
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_only (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    cloud_cluster(cloud_objects_w_arm, cloud_arm_w_object);
 
-    //writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_arm_only.pcd", *cloud_arm_only, true);
+    writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_arm_w_object.pcd", *cloud_arm_w_object, true);
 
 
     //agora apanhar o que ta na mao
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_object_in_hand (new pcl::PointCloud<pcl::PointXYZRGBA>);
-    getObjectInHand(cloud_arm_only, cloud_object_in_hand);
+    //=true;
+    getObjectInHand(cloud_arm_w_object, cloud_object_in_hand);
+
+    if(cloud_object_in_hand->points.size()>100){
+        //APAGADOR tá com 117 pts
+        isEraser=true;
+
+    } if(cloud_object_in_hand->points.size()<=100){
+        //CANETA ta com 76 pts
+        isEraser=false;
+    }
+
+
+    if(isEraser)
+        std::cout << " é apagador " << isEraser << "  é " << std::endl;
+    if(!isEraser)
+        std::cout << " é caneta " << isEraser << "  é " << std::endl;
 
 }
 
@@ -1169,6 +1225,26 @@ else
 
 
 
+void detectObjectHeight(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w_object, bool isEraser){
+
+
+   int closest_index;
+   double y_min=-100000;
+
+    for(int i =0; i<cloud_arm_w_object->size(); i++){
+        if(cloud_arm_w_object->points[i].y>y_min){
+            y_min=cloud_arm_w_object->points[i].y;
+            closest_index=i;
+
+        }
+    }
+    std::cout << "y minimo " << y_min << "   WOWOWO" << std::endl;
+
+
+
+}
+
+
 int main(int argsc, char** argsv){
     
     // create a point cloud to keep track of the ball's path
@@ -1285,14 +1361,16 @@ int main(int argsc, char** argsv){
     tableObjectsClusterization(cloud_in_arg2, camera_pitch, camera_roll,
                                camera_height, dimensions, clusters_vector);
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster1 = clusters_vector[0];
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster1 = clusters_vector[0];
 
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w_object (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    bool isEraser;
 
-    handDetection(cloud_in_arg3, dimensions, camera_pitch, camera_roll, camera_height);
+    handDetection(cloud_in_arg3, cloud_arm_w_object, dimensions, camera_pitch, camera_roll, camera_height, isEraser);
+    std::cout << "LOLOL " << cloud_arm_w_object->size() << "   WOWOWO" << std::endl;
 
-
-
-
+    //passo 5, deteta se o objeto (caneta ou apagar) ta a tocar ou nao na mesa
+    detectObjectHeight(cloud_arm_w_object, isEraser);
 
 
 
