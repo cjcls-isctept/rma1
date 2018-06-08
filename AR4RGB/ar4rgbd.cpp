@@ -1102,6 +1102,28 @@ void obtainArmPointingVector(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w
 }
 
 
+void parametricDetection(osg::Vec3 vector, pcl::PointXYZRGBA o_point,bool isTouchingTable, std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector){
+
+    if(!isTouchingTable){
+
+        for(double t=0.0; t<3.0; t+=0.2){
+                osg::Vec3 vector_aux=vector.operator *(t);
+                //=o_point.x + vector_aux.x;
+
+                //estavamos aquiiii!!
+
+
+              pcl::PointXYZRGBA point();
+
+              std::cout << "ponto  :" << point.x << "  !! " << std::endl;
+
+        }
+
+
+    }
+
+}
+
 
 void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, unsigned char* data, unsigned char* dataDepth)
 {
@@ -1484,7 +1506,7 @@ int main(int argsc, char** argsv){
     std::cout << "Vector : |" << vector.x() << ", " <<  vector.y() << ", "<< vector.z() << " |"<<std::endl;
 
 
-    parametricDetection(vector,touching_point_index,isTouchingTable, clusters_vector);
+    parametricDetection(vector,cloud_arm_w_object->points[touching_point_index],isTouchingTable, clusters_vector);
 
 //test
 
