@@ -939,7 +939,7 @@ void getObjectInHand(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_only, pcl
 
 
 void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& cloud_arm_w_object, std::vector<double>& dimensions,
-                   double camera_pitch, double camera_roll, double camera_height, bool isEraser){
+                   double camera_pitch, double camera_roll, double camera_height, bool &isEraser){
 
     pcl::PCDWriter writer;
     //roda e ajusta a nuvem para ficar melhor, e devove a cloud_rotated
@@ -957,7 +957,7 @@ void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, pcl::PointC
    // std::cout << "taansadmanho 3 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
 
 
-    trimCloudByYX(cloud_rotated ,cloud_objects_w_arm,-0.05 , dimensions, true);
+    trimCloudByYX(cloud_rotated ,cloud_objects_w_arm,-0.005 , dimensions, true);
 
 
    // writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_objects_w_arm.pcd", *cloud_objects_w_arm, true);
@@ -990,6 +990,117 @@ void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, pcl::PointC
         std::cout << " é caneta " << isEraser << "  é " << std::endl;
 
 }
+
+
+void detectObjectHeight(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w_object, bool isEraser, bool& isTouchingTable, int& touching_point_index){
+
+   touching_point_index=-1;
+   int closest_index;
+   double y_min=-100000;
+
+    for(int i =0; i<cloud_arm_w_object->size(); i++){
+        if(cloud_arm_w_object->points[i].y>y_min){
+            y_min=cloud_arm_w_object->points[i].y;
+            closest_index=i;
+
+        }
+    }
+
+    if(y_min>-0.05){
+        std::cout << "Está a tocar na mesa com y minimo :" << y_min << "  !! " << std::endl;
+        isTouchingTable=true;
+        //registar posicao
+        touching_point_index=closest_index;
+    }else{
+        std::cout << "Não ta a tocar na mesa, o y minimo :" << y_min << " !!" << std::endl;
+        isTouchingTable=false;
+        touching_point_index=closest_index;
+    }
+
+
+
+
+
+}
+
+
+
+void obtainArmPointingVector(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w_object, int lowest_index, bool isTouchingTable, osg::Vec3& vector){
+
+    if(!isTouchingTable){
+
+        int highest_index;
+        double y_max=-100000;
+
+        for(int i =0; i<cloud_arm_w_object->size(); i++){
+            if(cloud_arm_w_object->points[i].y<y_max){
+                y_max=cloud_arm_w_object->points[i].y;
+                highest_index=i;
+
+            }
+        }
+
+        pcl::search::KdTree<pcl::PointXYZRGBA> kdtree;
+
+        kdtree.setInputCloud (cloud_arm_w_object);
+
+        //KDtree para apanhar ponto de baixo do vetor
+
+        std::vector<int> low_pointIdxSearch;
+
+        std::vector<float> low_pointSquaredDistance;
+
+        kdtree.radiusSearch (cloud_arm_w_object->points[lowest_index], 0.1, low_pointIdxSearch, low_pointSquaredDistance);
+
+        double low_x;
+        double low_y;
+        double low_z;
+
+        for(int i = 0; i<low_pointIdxSearch.size(); i++){
+
+            low_x+=cloud_arm_w_object->points[i].x;
+            low_y+=cloud_arm_w_object->points[i].y;
+            low_z+=cloud_arm_w_object->points[i].z;
+
+        }
+
+        low_x=low_x/low_pointIdxSearch.size();
+        low_y=low_y/low_pointIdxSearch.size();
+        low_z=low_z/low_pointIdxSearch.size();
+
+        //KDtree para apanhar ponto de cima do vetor
+
+        std::vector<int> high_pointIdxSearch;
+
+        std::vector<float> high_pointSquaredDistance;
+
+        kdtree.radiusSearch (cloud_arm_w_object->points[highest_index], 0.1, high_pointIdxSearch, high_pointSquaredDistance);
+
+        double high_x;
+        double high_y;
+        double high_z;
+
+        for(int i = 0; i<high_pointIdxSearch.size(); i++){
+
+            high_x+=cloud_arm_w_object->points[i].x;
+            high_y+=cloud_arm_w_object->points[i].y;
+            high_z+=cloud_arm_w_object->points[i].z;
+
+        }
+
+        high_x=high_x/high_pointIdxSearch.size();
+        high_y=high_y/high_pointIdxSearch.size();
+        high_z=high_z/high_pointIdxSearch.size();
+
+
+        osg::Vec3 v(1,2,3);
+        vector.set(low_x-high_x , low_y-high_y, low_z-high_z);
+
+    }
+
+
+}
+
 
 
 void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, unsigned char* data, unsigned char* dataDepth)
@@ -1030,6 +1141,8 @@ void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
         }
     }
 }
+
+
 
 
 
@@ -1225,24 +1338,7 @@ else
 
 
 
-void detectObjectHeight(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w_object, bool isEraser){
 
-
-   int closest_index;
-   double y_min=-100000;
-
-    for(int i =0; i<cloud_arm_w_object->size(); i++){
-        if(cloud_arm_w_object->points[i].y>y_min){
-            y_min=cloud_arm_w_object->points[i].y;
-            closest_index=i;
-
-        }
-    }
-    std::cout << "y minimo " << y_min << "   WOWOWO" << std::endl;
-
-
-
-}
 
 
 int main(int argsc, char** argsv){
@@ -1370,10 +1466,25 @@ int main(int argsc, char** argsv){
     std::cout << "LOLOL " << cloud_arm_w_object->size() << "   WOWOWO" << std::endl;
 
     //passo 5, deteta se o objeto (caneta ou apagar) ta a tocar ou nao na mesa
-    detectObjectHeight(cloud_arm_w_object, isEraser);
+    bool isTouchingTable=false;
+
+    int touching_point_index;
+    detectObjectHeight(cloud_arm_w_object, isEraser, isTouchingTable, touching_point_index);
+    if(touching_point_index==-1){
+        //quer dizer que deu merda
+    }
+
+    std::cout << "Tá a tocar na mesa? Resposta : " << isTouchingTable << " !!" << std::endl;
 
 
+    //obter vetor
+    osg::Vec3 vector;
+    obtainArmPointingVector(cloud_arm_w_object,touching_point_index, isTouchingTable, vector);
 
+    std::cout << "Vector : |" << vector.x() << ", " <<  vector.y() << ", "<< vector.z() << " |"<<std::endl;
+
+
+    parametricDetection(vector,touching_point_index,isTouchingTable, clusters_vector);
 
 //test
 
@@ -1439,7 +1550,7 @@ int main(int argsc, char** argsv){
 
     // create a root's viewer
     //34.
-    osgViewer::Viewer viewer;
+    /*osgViewer::Viewer viewer;
 
     viewer.setUpViewInWindow(0, 0, 640, 480);
 
@@ -1459,7 +1570,7 @@ int main(int argsc, char** argsv){
 //detectCollisions(ballPath, ballTransf, kdtree, &collidedLeft, &collidedRight, &collidedFront, &collidedBack, &collidedBelow);
    viewer.frame();
 
-   }
+   }*/
 
 
     if (ballPath->size() > 0)
