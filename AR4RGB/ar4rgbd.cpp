@@ -513,7 +513,7 @@ void cloud_cluster(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_input,
 
     }
     //cloud_cluster_selected = cloud_temporary;
-    std::cout<< " dasdaasd "<<cloud_cluster_selected->points.size() <<" dasdasdasdasd"<< std::endl;
+    //std::cout<< " dasdaasd "<<cloud_cluster_selected->points.size() <<" dasdasdasdasd"<< std::endl;
     //std::vector<pcl::PointIndices> c;
     //c[0]=cloud_cluster_selected;
 
@@ -1030,7 +1030,7 @@ void obtainArmPointingVector(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w
     if(!isTouchingTable){
 
         int highest_index;
-        double y_max=-100000;
+        double y_max=100000;
 
         for(int i =0; i<cloud_arm_w_object->size(); i++){
             if(cloud_arm_w_object->points[i].y<y_max){
@@ -1087,13 +1087,16 @@ void obtainArmPointingVector(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w
             high_z+=cloud_arm_w_object->points[i].z;
 
         }
-
+/*
         high_x=high_x/high_pointIdxSearch.size();
         high_y=high_y/high_pointIdxSearch.size();
-        high_z=high_z/high_pointIdxSearch.size();
+        high_z=high_z/high_pointIdxSearch.size();*/
+        high_x=cloud_arm_w_object->points[highest_index].x;
+        high_y=cloud_arm_w_object->points[highest_index].y;
+        high_z=cloud_arm_w_object->points[highest_index].z;
 
 
-        osg::Vec3 v(1,2,3);
+
         vector.set(low_x-high_x , low_y-high_y, low_z-high_z);
 
     }
@@ -1102,27 +1105,143 @@ void obtainArmPointingVector(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w
 }
 
 
-void parametricDetection(osg::Vec3 vector, pcl::PointXYZRGBA o_point,bool isTouchingTable, std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector){
+
+void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTable, std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector, osg::Vec3 color){
 
     if(!isTouchingTable){
+        float x = o_point.x();
+        float y = o_point.y();
+        float z = o_point.z();
 
-        for(double t=0.0; t<3.0; t+=0.2){
-                osg::Vec3 vector_aux=vector.operator *(t);
-                //=o_point.x + vector_aux.x;
+        //pcl::PointXYZRGBA new_point;
+        osg::Vec3 new_point(0,0,0);
 
-                //estavamos aquiiii!!
+        //KDTrees
+        pcl::search::KdTree<pcl::PointXYZRGBA> kdtree_0;
+        kdtree_0.setInputCloud (clusters_vector[0]);
+
+        pcl::search::KdTree<pcl::PointXYZRGBA> kdtree_1;
+        kdtree_1.setInputCloud (clusters_vector[1]);
+
+        pcl::search::KdTree<pcl::PointXYZRGBA> kdtree_2;
+        kdtree_2.setInputCloud (clusters_vector[2]);
+
+        std::vector<int> pointIdxSearch_0;
+
+        std::vector<float> pointSquaredDistance_0;
+
+        std::vector<int> pointIdxSearch_1;
+
+        std::vector<float> pointSquaredDistance_1;
+
+        std::vector<int> pointIdxSearch_2;
+
+        std::vector<float> pointSquaredDistance_2;
+
+        int size_0=0;
+        int size_1=0;
+        int size_2=0;
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr vetor_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
+
+        for(double t=0.0; t<5.0; t+=0.4){
+
+            osg::Vec3 vector_aux=vector.operator *(t);
+
+            new_point.set(vector_aux.x() +x, vector_aux.y() + y, vector_aux.z() + z);
 
 
-              pcl::PointXYZRGBA point();
 
-              std::cout << "ponto  :" << point.x << "  !! " << std::endl;
+            std::cout << "ponto  :" << new_point.x() << "  ," <<  new_point.y() << " ," << new_point.z() << std::endl;
+
+                pcl::PointXYZRGB point(255,255,255);
+                point.x=new_point.x();
+                point.y=new_point.y();
+                point.z=new_point.z();
+
+
+                pcl::PointXYZRGBA pointRGBA;
+
+                pointRGBA.x=new_point.x();
+                pointRGBA.y=new_point.y();
+                pointRGBA.z=new_point.z();
+
+                vetor_cloud->points.push_back(point);
+
+
+
+                kdtree_0.radiusSearch (pointRGBA, 0.1, pointIdxSearch_0, pointSquaredDistance_0);
+                size_0=size_0+pointIdxSearch_0.size();
+
+
+                kdtree_1.radiusSearch (pointRGBA, 0.1, pointIdxSearch_1, pointSquaredDistance_1);
+                size_1=size_1+pointIdxSearch_1.size();
+
+
+                kdtree_2.radiusSearch (pointRGBA, 0.1, pointIdxSearch_2, pointSquaredDistance_2);
+                size_2=size_2+pointIdxSearch_2.size();
+
+
+
+        }
+
+        if(size_0>size_1 && size_0>size_2){
+            //maior é o size_0
+            //color((double)clusters_vector[0]->points[0].r,(double)clusters_vector[0]->points[0].g, (double)clusters_vector[0]->points[0].b);
+            std::cout << " apanhou este num de pretos " << size_0<< std::endl;
+
+        }
+        if(size_1>size_0 && size_1>size_2){
+            //maior é o size_1
+            //color((double)clusters_vector[1]->points[0].r,(double)clusters_vector[1]->points[0].g, (double)clusters_vector[1]->points[0].b);
+            std::cout << " apanhou este num de brancos " << size_1<< std::endl;
+        }
+        if(size_2>size_0 && size_2>size_1){
+            //maior é o size_2
+            //color.set((double)clusters_vector[2]->points[0].r,(double)clusters_vector[2]->points[0].g, (double)clusters_vector[20]->points[0].b);
+            std::cout << " apanhou este num de azuis " << size_2<< std::endl;
+        }
+        if(size_0 + size_1 + size_2 <10){
+            //nao ta a apontar para nenhuma cor
+            //podemos por aqui um boolean para saber se ta a apontar para um dos
+            //objetos ou não
 
         }
 
 
+        osg::Vec3 v1 = o_point.operator -(vector);
+        pcl::PointXYZRGB point1(255,255,255);
+        point1.x=v1.x();
+        point1.y=v1.y();
+        point1.z=v1.z();
+        vetor_cloud->points.push_back(point1);
+
+        pcl::PCDWriter writer;
+            writer.write<pcl::PointXYZRGB> ("Out/out_vetor_cloud.pcd", *vetor_cloud, true);
     }
 
 }
+
+
+//pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& cloud_arm_w_object, std::vector<double>& dimensions,
+//double camera_pitch, double camera_roll, double camera_height, bool &isEraser
+
+void detectSecondHand(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, bool& isConfirmating, std::vector<double>& dimensions,
+                      double camera_pitch, double camera_roll, double camera_height){
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    clean_n_rotate_cloud(cloud_in, cloud_rotated , camera_pitch, camera_roll, camera_height);
+
+    //std::cout << "taansadmanho 2 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
+
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_objects_w_arms (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+
+
+    trimCloudByYX(cloud_rotated ,cloud_objects_w_arms,-0.005 , dimensions, true);
+}
+
 
 
 void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, unsigned char* data, unsigned char* dataDepth)
@@ -1505,8 +1624,16 @@ int main(int argsc, char** argsv){
 
     std::cout << "Vector : |" << vector.x() << ", " <<  vector.y() << ", "<< vector.z() << " |"<<std::endl;
 
+    osg::Vec3 color;
+    osg::Vec3 point_o;
+    point_o.set(cloud_arm_w_object->points[touching_point_index].x, cloud_arm_w_object->points[touching_point_index].y, cloud_arm_w_object->points[touching_point_index].z);
+    parametricDetection(vector, point_o, isTouchingTable, clusters_vector, color);
 
-    parametricDetection(vector,cloud_arm_w_object->points[touching_point_index],isTouchingTable, clusters_vector);
+
+    //detetar a 2ª mao
+    bool isConfirmating;
+    detectSecondHand(cloud_in_arg3, isConfirmating, dimensions,
+                     camera_pitch, camera_roll, camera_height);
 
 //test
 
