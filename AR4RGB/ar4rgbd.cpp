@@ -645,6 +645,7 @@ double calculate_average(double a, double b){
 void clean_n_rotate_cloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
                                                              pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated,
                                                              double camera_pitch, double camera_roll, double camera_height){
+
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_voxelised (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
     pcl::VoxelGrid<pcl::PointXYZRGBA> voxel_grid;
@@ -788,12 +789,14 @@ void colorAverage(std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters
         g=g/clusters_vector[i]->points.size();
         b=b/clusters_vector[i]->points.size();
 
-        for(int j=0; j<clusters_vector[i]->points.size(); j++){
+
+
+        for(int j=0; j<clusters_vector.size(); j++){
 
                 //std::cout<< " valor double ou int "<< (int)clusters_vector[0]->points[1].r <<" dasdasdasdasd"<< std::endl;
-            clusters_vector[i]->points[j].r=r;
-            clusters_vector[i]->points[j].g=g;
-            clusters_vector[i]->points[j].b=b;
+            clusters_vector[i]->points[0].r=r;
+            clusters_vector[i]->points[0].g=g;
+            clusters_vector[i]->points[0].b=b;
 
 
         }
@@ -874,7 +877,7 @@ void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in
 
   //  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster1 = clusters_vector[0];
 
-    colorAverage(clusters_vector);
+    //colorAverage(clusters_vector);
 
 
     //escrever num .pcd os clusters dos objetos na mesa, separadas. cada um numa nuvem
@@ -1106,12 +1109,15 @@ void obtainArmPointingVector(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w
 
 
 
-void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTable, std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector, osg::Vec3 color){
+void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTable,
+                         std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector, osg::Vec3 color, bool isConfirmating){
 
     if(!isTouchingTable){
         float x = o_point.x();
         float y = o_point.y();
         float z = o_point.z();
+
+        int selectedCloud=7;
 
         //pcl::PointXYZRGBA new_point;
         osg::Vec3 new_point(0,0,0);
@@ -1185,20 +1191,26 @@ void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTab
 
         }
 
+        std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector_temporary = clusters_vector;
+        colorAverage(clusters_vector_temporary);
+
         if(size_0>size_1 && size_0>size_2){
             //maior é o size_0
-            //color((double)clusters_vector[0]->points[0].r,(double)clusters_vector[0]->points[0].g, (double)clusters_vector[0]->points[0].b);
+            selectedCloud=0;
+            color.set((double)clusters_vector_temporary[0]->points[0].r,(double)clusters_vector_temporary[0]->points[0].g, (double)clusters_vector_temporary[0]->points[0].b);
             std::cout << " apanhou este num de pretos " << size_0<< std::endl;
 
         }
         if(size_1>size_0 && size_1>size_2){
             //maior é o size_1
-            //color((double)clusters_vector[1]->points[0].r,(double)clusters_vector[1]->points[0].g, (double)clusters_vector[1]->points[0].b);
+            selectedCloud=1;
+            color.set((double)clusters_vector_temporary[1]->points[0].r,(double)clusters_vector_temporary[1]->points[0].g, (double)clusters_vector_temporary[1]->points[0].b);
             std::cout << " apanhou este num de brancos " << size_1<< std::endl;
         }
         if(size_2>size_0 && size_2>size_1){
             //maior é o size_2
-            //color.set((double)clusters_vector[2]->points[0].r,(double)clusters_vector[2]->points[0].g, (double)clusters_vector[20]->points[0].b);
+            selectedCloud=2;
+            color.set((double)clusters_vector_temporary[2]->points[0].r,(double)clusters_vector_temporary[2]->points[0].g, (double)clusters_vector_temporary[2]->points[0].b);
             std::cout << " apanhou este num de azuis " << size_2<< std::endl;
         }
         if(size_0 + size_1 + size_2 <10){
@@ -1208,16 +1220,28 @@ void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTab
 
         }
 
-
+/*
         osg::Vec3 v1 = o_point.operator -(vector);
         pcl::PointXYZRGB point1(255,255,255);
         point1.x=v1.x();
         point1.y=v1.y();
         point1.z=v1.z();
-        vetor_cloud->points.push_back(point1);
+        vetor_cloud->points.push_back(point1);*/
 
         pcl::PCDWriter writer;
             writer.write<pcl::PointXYZRGB> ("Out/out_vetor_cloud.pcd", *vetor_cloud, true);
+
+        if(isConfirmating){
+            for(int i=0;i<clusters_vector.size();i++){
+                if(i!=selectedCloud){
+                    for(int j=0; j<clusters_vector[i]->points.size();j++){
+                        //clusters_vector[i]->points[j].a=0.5;
+                        //clusters a transparente
+                    }
+                }
+            }
+        }
+
     }
 
 }
@@ -1227,21 +1251,62 @@ void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTab
 //double camera_pitch, double camera_roll, double camera_height, bool &isEraser
 
 void detectSecondHand(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, bool& isConfirmating, std::vector<double>& dimensions,
-                      double camera_pitch, double camera_roll, double camera_height){
+                      double camera_pitch, double camera_roll, double camera_height, bool isTouchingTable){
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
-    clean_n_rotate_cloud(cloud_in, cloud_rotated , camera_pitch, camera_roll, camera_height);
-
-    //std::cout << "taansadmanho 2 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
+    if(!isTouchingTable){
+        pcl::PCDWriter writer;
 
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_objects_w_arms (new pcl::PointCloud<pcl::PointXYZRGBA>);
+        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
+        clean_n_rotate_cloud(cloud_in, cloud_rotated , camera_pitch, camera_roll, camera_height);
+
+        //std::cout << "taansadmanho 2 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
 
 
+        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_objects_w_arms (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
-    trimCloudByYX(cloud_rotated ,cloud_objects_w_arms,-0.005 , dimensions, true);
+        trimCloudByYX(cloud_rotated ,cloud_objects_w_arms,-0.1 , dimensions, true);
+
+        std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector;
+        getAllClusters(cloud_objects_w_arms, clusters_vector);
+
+        if(clusters_vector.size()>1){
+            std::cout << "é uma núvem de confirmação de cor" << std::endl;
+            isConfirmating=true;
+        }else{
+            std::cout << "NÃO é uma núvem de confirmação de cor" << std::endl;
+            isConfirmating=false;
+        }
+
+        writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_arms.pcd", *cloud_objects_w_arms, true);
+    }
 }
 
+
+
+
+void rotate_cluster_vector(std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector,
+                           std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector_rotated,
+                           double camera_pitch, double camera_roll, double camera_height){
+
+
+
+    Eigen::Affine3f t1T = pcl::getTransformation (0.0,camera_height, 0.0, 0.0, 0.0, 0);
+
+    Eigen::Affine3f t2T = pcl::getTransformation (0.0, 0.0, 0.0, camera_pitch, 0.0, 0.0);
+
+    Eigen::Affine3f t3T = pcl::getTransformation (0.0, 0.0, 0.0, 0.0, 0.0, camera_roll);
+
+
+
+
+    for(int i = 0 ; i < clusters_vector.size() ; i++){
+        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
+        pcl::transformPointCloud(*clusters_vector[i], *cloud, t3T*t2T*t1T);
+        clusters_vector_rotated.push_back(cloud);
+    }
+
+}
 
 
 void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, unsigned char* data, unsigned char* dataDepth)
@@ -1269,7 +1334,7 @@ void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
                 dataDepth[index1] = dataDepth[index1+1] = dataDepth[index1+2] = 0;
 
             }else{
-            //se nao, vai la buscar os calor xyz
+            //se nao, vai la buscar os valor xyz
                 dataDepth[index1] = ((cloud_in->points[index2].x+2)/6.0)*255.0;
 
                 dataDepth[index1+1] = ((cloud_in->points[index2].y+2)/6.0)*255.0;
@@ -1282,7 +1347,6 @@ void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
         }
     }
 }
-
 
 
 
@@ -1367,6 +1431,7 @@ void createVirtualCameras(osg::ref_ptr<osg::Camera> camera1, osg::ref_ptr<osg::C
 }
 
 
+
 void	createOrthoTexture(osg::ref_ptr<osg::Geode> orthoTextureGeode,
                            unsigned char* data, unsigned char* dataDepth, int width, int height)
 {
@@ -1425,6 +1490,7 @@ void	createOrthoTexture(osg::ref_ptr<osg::Geode> orthoTextureGeode,
 
 
 
+
 void detectCollisions(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr ballPath, osg::ref_ptr<osg::PositionAttitudeTransform> ballTransf,
                       pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr kdtree,
                       bool *collidedLeft, bool *collidedRight, bool *collidedFront, bool *collidedBack, bool *collidedBelow)
@@ -1476,6 +1542,7 @@ else
 *collidedLeft = true;
 
 }
+
 
 
 
@@ -1627,15 +1694,37 @@ int main(int argsc, char** argsv){
     osg::Vec3 color;
     osg::Vec3 point_o;
     point_o.set(cloud_arm_w_object->points[touching_point_index].x, cloud_arm_w_object->points[touching_point_index].y, cloud_arm_w_object->points[touching_point_index].z);
-    parametricDetection(vector, point_o, isTouchingTable, clusters_vector, color);
+
 
 
     //detetar a 2ª mao
     bool isConfirmating;
     detectSecondHand(cloud_in_arg3, isConfirmating, dimensions,
-                     camera_pitch, camera_roll, camera_height);
+                     camera_pitch, camera_roll, camera_height, isTouchingTable);
+
+    parametricDetection(vector, point_o, isTouchingTable, clusters_vector, color, isConfirmating);
+
+
+    osg::Vec3 selected_color;
+    if(isConfirmating){
+        selected_color=color;
+    }
+
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in_arg3_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+    clean_n_rotate_cloud(cloud_in_arg3, cloud_in_arg3_rotated,camera_pitch, camera_roll, camera_height);
+
+    std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector_rotated;
+    rotate_cluster_vector(clusters_vector, clusters_vector_rotated,camera_pitch, camera_roll, camera_height);
+
+    pcl::PCDWriter writer2;
+    writer2.write<pcl::PointXYZRGBA> ("Out/out_um_cluster.pcd", *(clusters_vector_rotated[0]), true);
+
+
 
 //test
+
 
 
 
@@ -1647,7 +1736,7 @@ int main(int argsc, char** argsv){
 
    unsigned char* dataDepth = (unsigned char*)calloc(size,sizeof(unsigned char));
 
-   createImageFromPointCloud(cloud_in, data, dataDepth);
+   createImageFromPointCloud(cloud_in_arg3, data, dataDepth);
 
 
 
@@ -1699,7 +1788,7 @@ int main(int argsc, char** argsv){
 
     // create a root's viewer
     //34.
-    /*osgViewer::Viewer viewer;
+    osgViewer::Viewer viewer;
 
     viewer.setUpViewInWindow(0, 0, 640, 480);
 
@@ -1719,7 +1808,7 @@ int main(int argsc, char** argsv){
 //detectCollisions(ballPath, ballTransf, kdtree, &collidedLeft, &collidedRight, &collidedFront, &collidedBack, &collidedBelow);
    viewer.frame();
 
-   }*/
+   }
 
 
     if (ballPath->size() > 0)
