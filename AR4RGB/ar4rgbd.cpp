@@ -1110,14 +1110,16 @@ void obtainArmPointingVector(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w
 
 
 void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTable,
-                         std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector, osg::Vec3 color, bool isConfirmating){
+                         std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector, osg::Vec3 color, int cluster_index, bool isConfirmating){
 
     if(!isTouchingTable){
         float x = o_point.x();
         float y = o_point.y();
         float z = o_point.z();
 
-        int selectedCloud=7;
+        //int selectedCloud=7;
+
+        cluster_index=-1;
 
         //pcl::PointXYZRGBA new_point;
         osg::Vec3 new_point(0,0,0);
@@ -1196,20 +1198,23 @@ void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTab
 
         if(size_0>size_1 && size_0>size_2){
             //maior é o size_0
-            selectedCloud=0;
+            //selectedCloud=0;
+            cluster_index=0;
             color.set((double)clusters_vector_temporary[0]->points[0].r,(double)clusters_vector_temporary[0]->points[0].g, (double)clusters_vector_temporary[0]->points[0].b);
             std::cout << " apanhou este num de pretos " << size_0<< std::endl;
 
         }
         if(size_1>size_0 && size_1>size_2){
             //maior é o size_1
-            selectedCloud=1;
+            //selectedCloud=1;
+            cluster_index=1;
             color.set((double)clusters_vector_temporary[1]->points[0].r,(double)clusters_vector_temporary[1]->points[0].g, (double)clusters_vector_temporary[1]->points[0].b);
             std::cout << " apanhou este num de brancos " << size_1<< std::endl;
         }
         if(size_2>size_0 && size_2>size_1){
             //maior é o size_2
-            selectedCloud=2;
+            //selectedCloud=2;
+            cluster_index=2;
             color.set((double)clusters_vector_temporary[2]->points[0].r,(double)clusters_vector_temporary[2]->points[0].g, (double)clusters_vector_temporary[2]->points[0].b);
             std::cout << " apanhou este num de azuis " << size_2<< std::endl;
         }
@@ -1233,7 +1238,7 @@ void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTab
 
         if(isConfirmating){
             for(int i=0;i<clusters_vector.size();i++){
-                if(i!=selectedCloud){
+                if(i!=cluster_index ){
                     for(int j=0; j<clusters_vector[i]->points.size();j++){
                         //clusters_vector[i]->points[j].a=0.5;
                         //clusters a transparente
@@ -1307,6 +1312,91 @@ void rotate_cluster_vector(std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>&
     }
 
 }
+
+//cria as coordenadas 2D da projecao do cluster
+void calculate_bi_dimensional_proj(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster, std::vector<double>& coordinates){
+
+    for(int i =0; i<cloud_cluster->points.size(); i++){
+
+        double x3d = cloud_cluster->points[i].x;
+        double y3d = cloud_cluster->points[i].y;
+        double z3d = cloud_cluster->points[i].z;
+
+        double x2d=(2*x3d)/(z3d);
+        double y2d=(2*y3d)/(z3d);
+
+        coordinates.push_back(x2d);
+        coordinates.push_back(y2d);
+
+
+    }
+
+
+}
+
+
+void replacePixels(int cluster_index,  std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector, std::vector<double> coordinates,
+                   unsigned char& data, unsigned char* data_background){
+
+
+    /*for(int cluster_iterator = 0 ; cluster_iterator < clusters_vector.size() ; cluster_iterator++){
+        for(int coord_iterator = 0 ; coord_iterator < coordinates ; coord_iterator+=2){
+            data[coord_iterator] = data_background[coord_iterator];
+            data[coord_iterator] = data_background[coord_iterator];
+            data[coord_iterator] = data_background[coord_iterator];
+        }
+    }*/
+   /*  long index1, index2;
+    for (int row=0;row<coordinates.size();row+=2)
+    {
+        for (int col=1;col<coordinates.size();col+2)
+        {
+            index1 = 3*(row*cloud_in->width + col);
+            index2 = (cloud_in->height-row-1)*cloud_in->width + col;
+
+
+            data[index1] = cloud_in->points[index2].r;
+
+            data[index1+1] = cloud_in->points[index2].g;
+
+            data[index1+2] = cloud_in->points[index2].b;
+
+
+            //se ele nao tiver info da depth do ponto, mete a zeros
+            if (isnan(cloud_in->points[index2].x)){
+
+                dataDepth[index1] = dataDepth[index1+1] = dataDepth[index1+2] = 0;
+
+            }else{
+            //se nao, vai la buscar os valor xyz
+                dataDepth[index1] = ((cloud_in->points[index2].x+2)/6.0)*255.0;
+
+                dataDepth[index1+1] = ((cloud_in->points[index2].y+2)/6.0)*255.0;
+
+                dataDepth[index1+2] = (cloud_in->points[index2].z/10.0)*255.0;
+
+            }
+
+
+        }
+    }*/
+
+
+    for(long coord_iterator = 0 ; coord_iterator < coordinates.size() ; coord_iterator+=2){
+
+      /*  data[(long)(coordinates[coord_iterator])]= data_background[(long)(coordinates[coord_iterator])];
+        data[(long)(coordinates[coord_iterator])+1]= data_background[(long)(coordinates[coord_iterator])+1];
+        data[(long)(coordinates[coord_iterator])+2]= data_background[(long)(coordinates[coord_iterator])+2];*/
+
+        data[coord_iterator]= clusters_vector[0]->points[0].r;
+        data[coord_iterator+1]= clusters_vector[0]->points[0].g;
+        data[coord_iterator+2]= clusters_vector[0]->points[0].b;
+
+    }
+
+}
+
+
 
 
 void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, unsigned char* data, unsigned char* dataDepth)
@@ -1689,7 +1779,7 @@ int main(int argsc, char** argsv){
     osg::Vec3 vector;
     obtainArmPointingVector(cloud_arm_w_object,touching_point_index, isTouchingTable, vector);
 
-    std::cout << "Vector : |" << vector.x() << ", " <<  vector.y() << ", "<< vector.z() << " |"<<std::endl;
+    //std::cout << "Vector : |" << vector.x() << ", " <<  vector.y() << ", "<< vector.z() << " |"<<std::endl;
 
     osg::Vec3 color;
     osg::Vec3 point_o;
@@ -1702,7 +1792,9 @@ int main(int argsc, char** argsv){
     detectSecondHand(cloud_in_arg3, isConfirmating, dimensions,
                      camera_pitch, camera_roll, camera_height, isTouchingTable);
 
-    parametricDetection(vector, point_o, isTouchingTable, clusters_vector, color, isConfirmating);
+    //este index é o que diz o index do cluster que tá a ser apontado
+    int cluster_index;
+    parametricDetection(vector, point_o, isTouchingTable, clusters_vector, color, cluster_index, isConfirmating);
 
 
     osg::Vec3 selected_color;
@@ -1711,9 +1803,9 @@ int main(int argsc, char** argsv){
     }
 
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in_arg3_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in_arg3_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
-    clean_n_rotate_cloud(cloud_in_arg3, cloud_in_arg3_rotated,camera_pitch, camera_roll, camera_height);
+    //clean_n_rotate_cloud(cloud_in_arg3, cloud_in_arg3_rotated,camera_pitch, camera_roll, camera_height);
 
     std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector_rotated;
     rotate_cluster_vector(clusters_vector, clusters_vector_rotated,camera_pitch, camera_roll, camera_height);
@@ -1721,8 +1813,13 @@ int main(int argsc, char** argsv){
     pcl::PCDWriter writer2;
     writer2.write<pcl::PointXYZRGBA> ("Out/out_um_cluster.pcd", *(clusters_vector_rotated[0]), true);
 
+    //unsigned char* data_cluster = (unsigned char*)calloc(size,sizeof(unsigned char));
+    std::vector<double> coordinates;
+    calculate_bi_dimensional_proj(clusters_vector_rotated[cluster_index], coordinates);
 
+    //std::cout << " coordenadas" << ", "<< coordinates.size() << " | "<< " quantos pontos " << ", "<< clusters_vector_rotated[cluster_index]->points.size() <<std::endl;
 
+//
 //test
 
 
@@ -1732,11 +1829,32 @@ int main(int argsc, char** argsv){
     //14.
     int size = cloud_in->height*cloud_in->width*3;
 
-   unsigned char* data = (unsigned char*)calloc(size,sizeof(unsigned char));
+    unsigned char* data = (unsigned char*)calloc(size,sizeof(unsigned char));
 
-   unsigned char* dataDepth = (unsigned char*)calloc(size,sizeof(unsigned char));
+    unsigned char* dataDepth = (unsigned char*)calloc(size,sizeof(unsigned char));
 
-   createImageFromPointCloud(cloud_in_arg3, data, dataDepth);
+    createImageFromPointCloud(cloud_in_arg3, data, dataDepth);
+
+
+
+    //adicionei isto
+
+    //unsigned char* data_background = (unsigned char*)calloc(size,sizeof(unsigned char));
+
+    //unsigned char* dataDepth_background = (unsigned char*)calloc(size,sizeof(unsigned char));
+
+    //createImageFromPointCloud(cloud_in_arg3, data, dataDepth);
+
+    //ir buscar a cor da mesa
+
+    //getTablePointsColor(cloud_in, coordinates, table_colors);
+
+    //replacePixels(cluster_index, clusters_vector, coordinates, data, data_background);
+
+
+
+
+    //ate aqui
 
 
 
