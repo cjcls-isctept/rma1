@@ -27,6 +27,8 @@
 #include <osg/AlphaFunc>
 #include <osgGA/GUIEventHandler>
 #include <osg/ShapeDrawable>
+#include <osgText/Font>
+#include <osgText/Text>
 
 
 #include <pcl/io/pcd_io.h>
@@ -68,6 +70,8 @@
 #include <sstream>
 
 pcl::visualization::PCLVisualizer *viewer;
+//adicionei
+osg::ref_ptr<osgText::Text> textFrames;
 //double dim_vec[4];
 
 static const char* textureVertexSource = {
@@ -645,7 +649,6 @@ double calculate_average(double a, double b){
 void clean_n_rotate_cloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
                                                              pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated,
                                                              double camera_pitch, double camera_roll, double camera_height){
-
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_voxelised (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
     pcl::VoxelGrid<pcl::PointXYZRGBA> voxel_grid;
@@ -789,14 +792,12 @@ void colorAverage(std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters
         g=g/clusters_vector[i]->points.size();
         b=b/clusters_vector[i]->points.size();
 
-
-
-        for(int j=0; j<clusters_vector.size(); j++){
+        for(int j=0; j<clusters_vector[i]->points.size(); j++){
 
                 //std::cout<< " valor double ou int "<< (int)clusters_vector[0]->points[1].r <<" dasdasdasdasd"<< std::endl;
-            clusters_vector[i]->points[0].r=r;
-            clusters_vector[i]->points[0].g=g;
-            clusters_vector[i]->points[0].b=b;
+            clusters_vector[i]->points[j].r=r;
+            clusters_vector[i]->points[j].g=g;
+            clusters_vector[i]->points[j].b=b;
 
 
         }
@@ -877,7 +878,7 @@ void tableObjectsClusterization(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in
 
   //  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster1 = clusters_vector[0];
 
-    //colorAverage(clusters_vector);
+    colorAverage(clusters_vector);
 
 
     //escrever num .pcd os clusters dos objetos na mesa, separadas. cada um numa nuvem
@@ -1109,17 +1110,12 @@ void obtainArmPointingVector(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w
 
 
 
-void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTable,
-                         std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector, osg::Vec3 color, int cluster_index, bool isConfirmating){
+void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTable, std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector, osg::Vec3 color){
 
     if(!isTouchingTable){
         float x = o_point.x();
         float y = o_point.y();
         float z = o_point.z();
-
-        //int selectedCloud=7;
-
-        cluster_index=-1;
 
         //pcl::PointXYZRGBA new_point;
         osg::Vec3 new_point(0,0,0);
@@ -1193,29 +1189,20 @@ void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTab
 
         }
 
-        std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector_temporary = clusters_vector;
-        colorAverage(clusters_vector_temporary);
-
         if(size_0>size_1 && size_0>size_2){
             //maior é o size_0
-            //selectedCloud=0;
-            cluster_index=0;
-            color.set((double)clusters_vector_temporary[0]->points[0].r,(double)clusters_vector_temporary[0]->points[0].g, (double)clusters_vector_temporary[0]->points[0].b);
+            //color((double)clusters_vector[0]->points[0].r,(double)clusters_vector[0]->points[0].g, (double)clusters_vector[0]->points[0].b);
             std::cout << " apanhou este num de pretos " << size_0<< std::endl;
 
         }
         if(size_1>size_0 && size_1>size_2){
             //maior é o size_1
-            //selectedCloud=1;
-            cluster_index=1;
-            color.set((double)clusters_vector_temporary[1]->points[0].r,(double)clusters_vector_temporary[1]->points[0].g, (double)clusters_vector_temporary[1]->points[0].b);
+            //color((double)clusters_vector[1]->points[0].r,(double)clusters_vector[1]->points[0].g, (double)clusters_vector[1]->points[0].b);
             std::cout << " apanhou este num de brancos " << size_1<< std::endl;
         }
         if(size_2>size_0 && size_2>size_1){
             //maior é o size_2
-            //selectedCloud=2;
-            cluster_index=2;
-            color.set((double)clusters_vector_temporary[2]->points[0].r,(double)clusters_vector_temporary[2]->points[0].g, (double)clusters_vector_temporary[2]->points[0].b);
+            //color.set((double)clusters_vector[2]->points[0].r,(double)clusters_vector[2]->points[0].g, (double)clusters_vector[20]->points[0].b);
             std::cout << " apanhou este num de azuis " << size_2<< std::endl;
         }
         if(size_0 + size_1 + size_2 <10){
@@ -1225,28 +1212,16 @@ void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTab
 
         }
 
-/*
+
         osg::Vec3 v1 = o_point.operator -(vector);
         pcl::PointXYZRGB point1(255,255,255);
         point1.x=v1.x();
         point1.y=v1.y();
         point1.z=v1.z();
-        vetor_cloud->points.push_back(point1);*/
+        vetor_cloud->points.push_back(point1);
 
         pcl::PCDWriter writer;
             writer.write<pcl::PointXYZRGB> ("Out/out_vetor_cloud.pcd", *vetor_cloud, true);
-
-        if(isConfirmating){
-            for(int i=0;i<clusters_vector.size();i++){
-                if(i!=cluster_index ){
-                    for(int j=0; j<clusters_vector[i]->points.size();j++){
-                        //clusters_vector[i]->points[j].a=0.5;
-                        //clusters a transparente
-                    }
-                }
-            }
-        }
-
     }
 
 }
@@ -1256,146 +1231,20 @@ void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTab
 //double camera_pitch, double camera_roll, double camera_height, bool &isEraser
 
 void detectSecondHand(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, bool& isConfirmating, std::vector<double>& dimensions,
-                      double camera_pitch, double camera_roll, double camera_height, bool isTouchingTable){
+                      double camera_pitch, double camera_roll, double camera_height){
 
-    if(!isTouchingTable){
-        pcl::PCDWriter writer;
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    clean_n_rotate_cloud(cloud_in, cloud_rotated , camera_pitch, camera_roll, camera_height);
 
-
-        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
-        clean_n_rotate_cloud(cloud_in, cloud_rotated , camera_pitch, camera_roll, camera_height);
-
-        //std::cout << "taansadmanho 2 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
+    //std::cout << "taansadmanho 2 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
 
 
-        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_objects_w_arms (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_objects_w_arms (new pcl::PointCloud<pcl::PointXYZRGBA>);
 
-        trimCloudByYX(cloud_rotated ,cloud_objects_w_arms,-0.1 , dimensions, true);
 
-        std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector;
-        getAllClusters(cloud_objects_w_arms, clusters_vector);
 
-        if(clusters_vector.size()>1){
-            std::cout << "é uma núvem de confirmação de cor" << std::endl;
-            isConfirmating=true;
-        }else{
-            std::cout << "NÃO é uma núvem de confirmação de cor" << std::endl;
-            isConfirmating=false;
-        }
-
-        writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_arms.pcd", *cloud_objects_w_arms, true);
-    }
+    trimCloudByYX(cloud_rotated ,cloud_objects_w_arms,-0.005 , dimensions, true);
 }
-
-
-
-
-void rotate_cluster_vector(std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector,
-                           std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>& clusters_vector_rotated,
-                           double camera_pitch, double camera_roll, double camera_height){
-
-
-
-    Eigen::Affine3f t1T = pcl::getTransformation (0.0,camera_height, 0.0, 0.0, 0.0, 0);
-
-    Eigen::Affine3f t2T = pcl::getTransformation (0.0, 0.0, 0.0, camera_pitch, 0.0, 0.0);
-
-    Eigen::Affine3f t3T = pcl::getTransformation (0.0, 0.0, 0.0, 0.0, 0.0, camera_roll);
-
-
-
-
-    for(int i = 0 ; i < clusters_vector.size() ; i++){
-        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
-        pcl::transformPointCloud(*clusters_vector[i], *cloud, t3T*t2T*t1T);
-        clusters_vector_rotated.push_back(cloud);
-    }
-
-}
-
-//cria as coordenadas 2D da projecao do cluster
-void calculate_bi_dimensional_proj(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster, std::vector<double>& coordinates){
-
-    for(int i =0; i<cloud_cluster->points.size(); i++){
-
-        double x3d = cloud_cluster->points[i].x;
-        double y3d = cloud_cluster->points[i].y;
-        double z3d = cloud_cluster->points[i].z;
-
-        double x2d=(2*x3d)/(z3d);
-        double y2d=(2*y3d)/(z3d);
-
-        coordinates.push_back(x2d);
-        coordinates.push_back(y2d);
-
-
-    }
-
-
-}
-
-
-void replacePixels(int cluster_index,  std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector, std::vector<double> coordinates,
-                   unsigned char& data, unsigned char* data_background){
-
-
-    /*for(int cluster_iterator = 0 ; cluster_iterator < clusters_vector.size() ; cluster_iterator++){
-        for(int coord_iterator = 0 ; coord_iterator < coordinates ; coord_iterator+=2){
-            data[coord_iterator] = data_background[coord_iterator];
-            data[coord_iterator] = data_background[coord_iterator];
-            data[coord_iterator] = data_background[coord_iterator];
-        }
-    }*/
-   /*  long index1, index2;
-    for (int row=0;row<coordinates.size();row+=2)
-    {
-        for (int col=1;col<coordinates.size();col+2)
-        {
-            index1 = 3*(row*cloud_in->width + col);
-            index2 = (cloud_in->height-row-1)*cloud_in->width + col;
-
-
-            data[index1] = cloud_in->points[index2].r;
-
-            data[index1+1] = cloud_in->points[index2].g;
-
-            data[index1+2] = cloud_in->points[index2].b;
-
-
-            //se ele nao tiver info da depth do ponto, mete a zeros
-            if (isnan(cloud_in->points[index2].x)){
-
-                dataDepth[index1] = dataDepth[index1+1] = dataDepth[index1+2] = 0;
-
-            }else{
-            //se nao, vai la buscar os valor xyz
-                dataDepth[index1] = ((cloud_in->points[index2].x+2)/6.0)*255.0;
-
-                dataDepth[index1+1] = ((cloud_in->points[index2].y+2)/6.0)*255.0;
-
-                dataDepth[index1+2] = (cloud_in->points[index2].z/10.0)*255.0;
-
-            }
-
-
-        }
-    }*/
-
-
-    for(long coord_iterator = 0 ; coord_iterator < coordinates.size() ; coord_iterator+=2){
-
-      /*  data[(long)(coordinates[coord_iterator])]= data_background[(long)(coordinates[coord_iterator])];
-        data[(long)(coordinates[coord_iterator])+1]= data_background[(long)(coordinates[coord_iterator])+1];
-        data[(long)(coordinates[coord_iterator])+2]= data_background[(long)(coordinates[coord_iterator])+2];*/
-
-        data[coord_iterator]= clusters_vector[0]->points[0].r;
-        data[coord_iterator+1]= clusters_vector[0]->points[0].g;
-        data[coord_iterator+2]= clusters_vector[0]->points[0].b;
-
-    }
-
-}
-
 
 
 
@@ -1424,7 +1273,7 @@ void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
                 dataDepth[index1] = dataDepth[index1+1] = dataDepth[index1+2] = 0;
 
             }else{
-            //se nao, vai la buscar os valor xyz
+            //se nao, vai la buscar os calor xyz
                 dataDepth[index1] = ((cloud_in->points[index2].x+2)/6.0)*255.0;
 
                 dataDepth[index1+1] = ((cloud_in->points[index2].y+2)/6.0)*255.0;
@@ -1437,6 +1286,7 @@ void createImageFromPointCloud(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in,
         }
     }
 }
+
 
 
 
@@ -1521,7 +1371,6 @@ void createVirtualCameras(osg::ref_ptr<osg::Camera> camera1, osg::ref_ptr<osg::C
 }
 
 
-
 void	createOrthoTexture(osg::ref_ptr<osg::Geode> orthoTextureGeode,
                            unsigned char* data, unsigned char* dataDepth, int width, int height)
 {
@@ -1578,6 +1427,59 @@ void	createOrthoTexture(osg::ref_ptr<osg::Geode> orthoTextureGeode,
    orthoTextureGeode->addDrawable( quad.get() );
 }
 
+// this function creates an orthographic camera that will be used as HUD
+osg::ref_ptr<osg::Camera> createHUDCamera( double left, double right, double bottom, double top ){
+    osg::ref_ptr<osg::Camera> camera = new osg::Camera;
+    // stating that this camera has a global position and, thus, not changeable by the transform hierarchy
+    camera->setReferenceFrame( osg::Transform::ABSOLUTE_RF );
+    camera->setClearMask( GL_DEPTH_BUFFER_BIT );
+    // the next property ensures that the data rendered by this camera is overlaid on the output of other cameras
+    camera->setRenderOrder( osg::Camera::POST_RENDER, 1);
+    camera->setAllowEventFocus( false );
+    // stating that this camera is orthographic
+    camera->setProjectionMatrix(osg::Matrix::ortho2D(left, right, bottom, top) );
+    return camera;
+}
+
+osgText::Text* createText( const osg::Vec3& pos, const std::string& content, float size ){
+    osg::ref_ptr<osgText::Font> g_font = osgText::readFontFile("fonts/arial.ttf");
+    osg::ref_ptr<osgText::Text> text = new osgText::Text;
+    text->setFont( g_font.get() );
+    text->setCharacterSize( size );
+    text->setAxisAlignment( osgText::TextBase::XY_PLANE );
+    text->setPosition( pos );
+    text->setText( content );
+    // tell the system that the texto will be changing
+    text->setDataVariance(osg::Object::DYNAMIC);
+    return text.release();
+}
+
+osg::ref_ptr<osg::Camera> createHUD(){
+
+    // the geode responsible for storing the text (which is a form of geometry)
+    osg::ref_ptr<osg::Geode> textGeode = new osg::Geode;
+    // let us associate the tet to the geode (the text is created in other function; check it out
+    textGeode->addDrawable( createText(osg::Vec3(150.0f, 500.0f, 0.0f),"RMA, ISCTE/IUL", 20.0f) );
+    
+    // the second text will be made dynamic, so we use a global variable "textFrames" to store it
+    textFrames = createText(osg::Vec3(150.0f, 400.0f, 0.0f), "Frame 0", 20.0f);
+    // associating this new text to the geode
+    textGeode->addDrawable(textFrames);
+
+    //>>>TRY: create another text and add to the screen ...
+
+    // calling a function (check it out) to create an orthographic camera, which will be rendered on the top of the viewing camera.
+    // this camera will have as its single child the geode we've just created; this way, this camera will only see the two texts.
+    osg::ref_ptr<osg::Camera> hudCamera = createHUDCamera(0, 1024, 0, 768);
+    // attaching the text geode to the camera
+    hudCamera->addChild( textGeode.get() );
+    // stating that there should be no illumination effects associated to this camera (we just want to see the text with flat shading)
+    hudCamera->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF );
+
+    // return the camera object to be later on added to the scene graph
+    return hudCamera;
+}
+
 
 
 
@@ -1632,7 +1534,6 @@ else
 *collidedLeft = true;
 
 }
-
 
 
 
@@ -1697,26 +1598,17 @@ int main(int argsc, char** argsv){
     /*
     //added code
     pcl::PointClouda<pcl::PointXYZ>::Ptr cloud_voxelised (new pcl::PointCloud<pcl::PointXYZ>);
-
     pcl::VoxelGrid<pcl::PointXYZ> vg;
-
     vg.setInputCloud (cloud_in);
-
     vg.setLeafSize (0.01f, 0.01f, 0.01f);
-
     vg.filter (*cloud_voxelised);
-
     // two pointers that will be directed to the point clouds we want to render in red and in blue
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_red_thin (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_blue_thick (new pcl::PointCloud<pcl::PointXYZ>);
-
-
     // -- VIZUALISATION POINTERS (change it to visualise the various point clouds)
     //0.
     cloud_red_thin = cloud_in;
-
     cloud_blue_thick = cloud_voxelised;
-
     */
     //end of added code
 
@@ -1779,49 +1671,20 @@ int main(int argsc, char** argsv){
     osg::Vec3 vector;
     obtainArmPointingVector(cloud_arm_w_object,touching_point_index, isTouchingTable, vector);
 
-    //std::cout << "Vector : |" << vector.x() << ", " <<  vector.y() << ", "<< vector.z() << " |"<<std::endl;
+    std::cout << "Vector : |" << vector.x() << ", " <<  vector.y() << ", "<< vector.z() << " |"<<std::endl;
 
     osg::Vec3 color;
     osg::Vec3 point_o;
     point_o.set(cloud_arm_w_object->points[touching_point_index].x, cloud_arm_w_object->points[touching_point_index].y, cloud_arm_w_object->points[touching_point_index].z);
-
+    parametricDetection(vector, point_o, isTouchingTable, clusters_vector, color);
 
 
     //detetar a 2ª mao
     bool isConfirmating;
     detectSecondHand(cloud_in_arg3, isConfirmating, dimensions,
-                     camera_pitch, camera_roll, camera_height, isTouchingTable);
+                     camera_pitch, camera_roll, camera_height);
 
-    //este index é o que diz o index do cluster que tá a ser apontado
-    int cluster_index;
-    parametricDetection(vector, point_o, isTouchingTable, clusters_vector, color, cluster_index, isConfirmating);
-
-
-    osg::Vec3 selected_color;
-    if(isConfirmating){
-        selected_color=color;
-    }
-
-
-    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in_arg3_rotated (new pcl::PointCloud<pcl::PointXYZRGBA>);
-
-    //clean_n_rotate_cloud(cloud_in_arg3, cloud_in_arg3_rotated,camera_pitch, camera_roll, camera_height);
-
-    std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector_rotated;
-    rotate_cluster_vector(clusters_vector, clusters_vector_rotated,camera_pitch, camera_roll, camera_height);
-
-    pcl::PCDWriter writer2;
-    writer2.write<pcl::PointXYZRGBA> ("Out/out_um_cluster.pcd", *(clusters_vector_rotated[0]), true);
-
-    //unsigned char* data_cluster = (unsigned char*)calloc(size,sizeof(unsigned char));
-    std::vector<double> coordinates;
-    calculate_bi_dimensional_proj(clusters_vector_rotated[cluster_index], coordinates);
-
-    //std::cout << " coordenadas" << ", "<< coordinates.size() << " | "<< " quantos pontos " << ", "<< clusters_vector_rotated[cluster_index]->points.size() <<std::endl;
-
-//
 //test
-
 
 
 
@@ -1829,32 +1692,11 @@ int main(int argsc, char** argsv){
     //14.
     int size = cloud_in->height*cloud_in->width*3;
 
-    unsigned char* data = (unsigned char*)calloc(size,sizeof(unsigned char));
+   unsigned char* data = (unsigned char*)calloc(size,sizeof(unsigned char));
 
-    unsigned char* dataDepth = (unsigned char*)calloc(size,sizeof(unsigned char));
+   unsigned char* dataDepth = (unsigned char*)calloc(size,sizeof(unsigned char));
 
-    createImageFromPointCloud(cloud_in_arg3, data, dataDepth);
-
-
-
-    //adicionei isto
-
-    //unsigned char* data_background = (unsigned char*)calloc(size,sizeof(unsigned char));
-
-    //unsigned char* dataDepth_background = (unsigned char*)calloc(size,sizeof(unsigned char));
-
-    //createImageFromPointCloud(cloud_in_arg3, data, dataDepth);
-
-    //ir buscar a cor da mesa
-
-    //getTablePointsColor(cloud_in, coordinates, table_colors);
-
-    //replacePixels(cluster_index, clusters_vector, coordinates, data, data_background);
-
-
-
-
-    //ate aqui
+   createImageFromPointCloud(cloud_in, data, dataDepth);
 
 
 
@@ -1890,42 +1732,44 @@ int main(int argsc, char** argsv){
 
    osg::ref_ptr<osg::PositionAttitudeTransform> shadowTransf = new osg::PositionAttitudeTransform;
 
-  CreateBall(ballTransf, shadowTransf);
+  //CreateBall(ballTransf, shadowTransf);
 
+//
+
+//
 
     // run a controller to allow the user to control the ball with the keyboard
     //37.
-   osg::ref_ptr<BallController> ctrler =  new BallController( ballTransf.get(), &collidedLeft, &collidedRight, &collidedFront, &collidedBack, &collidedBelow);
+   //osg::ref_ptr<BallController> ctrler =  new BallController( ballTransf.get(), &collidedLeft, &collidedRight, &collidedFront, &collidedBack, &collidedBelow);
 
     // force the perspective camera look at the ball and the shadow
     //38.
    camera2->addChild( ballTransf );
 
     camera2->addChild( shadowTransf );
-
+    
+    //adicionei
+    osg::ref_ptr<osg::Camera> hud = createHUD();
+	root->addChild( hud.get() );
 
     // create a root's viewer
     //34.
     osgViewer::Viewer viewer;
-
     viewer.setUpViewInWindow(0, 0, 640, 480);
-
     viewer.setSceneData( root.get() );
-
     //38.A.
-    viewer.addEventHandler( ctrler.get() );
-
+    //viewer.addEventHandler( ctrler.get() );
     // create a kdtree from the point cloud in order to speed up collision detection
     //44.
-    pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr kdtree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
-   kdtree->setInputCloud (cloud_rotated);
-
+    //pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr kdtree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
+   //kdtree->setInputCloud (cloud_rotated);
     //35.
    while (!viewer.done() ){
+	   
+	   
    //43.
 //detectCollisions(ballPath, ballTransf, kdtree, &collidedLeft, &collidedRight, &collidedFront, &collidedBack, &collidedBelow);
    viewer.frame();
-
    }
 
 
@@ -1937,4 +1781,3 @@ int main(int argsc, char** argsv){
 
     
 }
-
