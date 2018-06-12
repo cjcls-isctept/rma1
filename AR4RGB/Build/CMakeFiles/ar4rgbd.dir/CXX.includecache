@@ -41,6 +41,10 @@ osgGA/GUIEventHandler
 -
 osg/ShapeDrawable
 -
+osgText/Font
+-
+osgText/Text
+-
 pcl/io/pcd_io.h
 -
 pcl/point_types.h

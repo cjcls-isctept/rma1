@@ -8,6 +8,7 @@ find_package( osgUtil )
 find_package( osgViewer )
 find_package( osgShadow )
 find_package( osgGA )
+find_package( osgText )
 find_package(PCL 1.6 COMPONENTS)
 
 set(CMAKE_CXX_FLAGS "-g -Wno-deprecated")
@@ -30,4 +31,5 @@ config_project(ar4rgbd OSGDB )
 config_project(ar4rgbd OSGGA ) 
 config_project(ar4rgbd OSGUTIL ) 
 config_project(ar4rgbd OSGVIEWER )
+config_project(ar4rgbd OSGTEXT )
 

@@ -294,6 +294,15 @@ OSGSHADOW_LIBRARY:FILEPATH=/usr/lib/libosgShadow.so
 OSGSHADOW_LIBRARY_DEBUG:FILEPATH=OSGSHADOW_LIBRARY_DEBUG-NOTFOUND
 
 //Path to a file.
+OSGTEXT_INCLUDE_DIR:PATH=/usr/include
+
+//Path to a library.
+OSGTEXT_LIBRARY:FILEPATH=/usr/lib/libosgText.so
+
+//Path to a library.
+OSGTEXT_LIBRARY_DEBUG:FILEPATH=OSGTEXT_LIBRARY_DEBUG-NOTFOUND
+
+//Path to a file.
 OSGUTIL_INCLUDE_DIR:PATH=/usr/include
 
 //Path to a library.
@@ -724,6 +733,8 @@ FIND_PACKAGE_MESSAGE_DETAILS_osgDB:INTERNAL=[/usr/lib/libosgDB.so][/usr/include]
 FIND_PACKAGE_MESSAGE_DETAILS_osgGA:INTERNAL=[/usr/lib/libosgGA.so][/usr/include][v()]
 //Details about finding osgShadow
 FIND_PACKAGE_MESSAGE_DETAILS_osgShadow:INTERNAL=[/usr/lib/libosgShadow.so][/usr/include][v()]
+//Details about finding osgText
+FIND_PACKAGE_MESSAGE_DETAILS_osgText:INTERNAL=[/usr/lib/libosgText.so][/usr/include][v()]
 //Details about finding osgUtil
 FIND_PACKAGE_MESSAGE_DETAILS_osgUtil:INTERNAL=[/usr/lib/libosgUtil.so][/usr/include][v()]
 //Details about finding osgViewer

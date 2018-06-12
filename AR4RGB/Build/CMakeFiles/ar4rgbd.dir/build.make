@@ -159,6 +159,7 @@ ar4rgbd: /usr/lib/libosgDB.so
 ar4rgbd: /usr/lib/libosgGA.so
 ar4rgbd: /usr/lib/libosgUtil.so
 ar4rgbd: /usr/lib/libosgViewer.so
+ar4rgbd: /usr/lib/libosgText.so
 ar4rgbd: /usr/lib/libpcl_common.so
 ar4rgbd: /usr/lib/libpcl_kdtree.so
 ar4rgbd: /usr/lib/libpcl_octree.so
@@ -183,6 +184,7 @@ ar4rgbd: /usr/lib/libosgDB.so
 ar4rgbd: /usr/lib/libosgGA.so
 ar4rgbd: /usr/lib/libosgUtil.so
 ar4rgbd: /usr/lib/libosgViewer.so
+ar4rgbd: /usr/lib/libosgText.so
 ar4rgbd: /usr/lib/libvtkViews.so.5.8.0
 ar4rgbd: /usr/lib/libvtkInfovis.so.5.8.0
 ar4rgbd: /usr/lib/libvtkWidgets.so.5.8.0

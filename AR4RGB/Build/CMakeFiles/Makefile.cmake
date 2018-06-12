@@ -38,6 +38,7 @@ SET(CMAKE_MAKEFILE_DEPENDS
   "/usr/share/cmake-2.8/Modules/FindosgDB.cmake"
   "/usr/share/cmake-2.8/Modules/FindosgGA.cmake"
   "/usr/share/cmake-2.8/Modules/FindosgShadow.cmake"
+  "/usr/share/cmake-2.8/Modules/FindosgText.cmake"
   "/usr/share/cmake-2.8/Modules/FindosgUtil.cmake"
   "/usr/share/cmake-2.8/Modules/FindosgViewer.cmake"
   "/usr/share/cmake-2.8/Modules/Findosg_functions.cmake"

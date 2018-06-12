@@ -71,7 +71,13 @@
 
 pcl::visualization::PCLVisualizer *viewer;
 //adicionei
+osg::ref_ptr<osg::Geode> textGeode = new osg::Geode;
 osg::ref_ptr<osgText::Text> textFrames;
+osg::ref_ptr<osgText::Text> text_n_hands;
+osg::ref_ptr<osgText::Text> text_isTouchingTable;
+osg::ref_ptr<osgText::Text> text_isEraser;
+osg::ref_ptr<osgText::Text> text_isPointing;
+osg::ref_ptr<osgText::Text> text_pointing_color;
 //double dim_vec[4];
 
 static const char* textureVertexSource = {
@@ -149,33 +155,95 @@ void pp_callback (const pcl::visualization::PointPickingEvent& event, void*)
 }
 
 
-void	CreateBall(osg::ref_ptr<osg::PositionAttitudeTransform> ballTransf,
-                   osg::ref_ptr<osg::PositionAttitudeTransform> shadowTransf)
+osg::ref_ptr<osg::Program> createPhongShaderProgram(){
+    static const char* phongVertexSource = {
+        "varying vec3 varnormal;\n"
+        "varying vec4 varposition;\n"
+        "void main()\n"
+        "{\n"
+        "varnormal = normalize(gl_NormalMatrix * gl_Normal);\n"
+        "varposition =  gl_ModelViewMatrix * (gl_Vertex);\n"
+        "gl_Position = gl_ModelViewProjectionMatrix * (gl_Vertex);\n"
+        "}\n"
+    };
+    static const char* phongFragmentSource = {
+        "varying vec3 varnormal;\n"
+        "varying vec4 varposition;\n"
+        "void main(void){\n"
+            "vec3 normal, lightDir, viewVector, halfVector;\n"
+            "vec4 diffuse, ambient, globalAmbient, specular;\n"
+            "float NdotL,NdotHV;\n"
+            "normal = normalize(varnormal);   \n"
+            "lightDir = normalize(vec3(gl_LightSource[0].position.xyz - varposition.xyz)); \n"
+            "NdotL = max(dot(normal, lightDir), 0.0);        \n"
+            "diffuse = gl_FrontMaterial.diffuse * gl_LightSource[0].diffuse;  \n"
+            "ambient = gl_FrontMaterial.ambient * gl_LightSource[0].ambient;  \n"
+            "NdotHV = max(dot(normal, normalize(gl_LightSource[0].halfVector.xyz)),0.0);      \n"
+            "specular = gl_FrontMaterial.specular * gl_LightSource[0].specular * pow(NdotHV,gl_FrontMaterial.shininess);  \n"
+            "gl_FragColor = clamp(NdotL * diffuse + ambient + specular, 0.0, 1.0);\n"
+            "gl_FragDepth = (1.0/gl_FragCoord.w)/1000.0;\n"
+        "}\n"
+    };
+    osg::ref_ptr<osg::Shader> phongVertShader = new osg::Shader( osg::Shader::VERTEX, phongVertexSource );
+    osg::ref_ptr<osg::Shader> phongFragShader = new osg::Shader( osg::Shader::FRAGMENT, phongFragmentSource );
+    osg::ref_ptr<osg::Program> phongShaderProgram = new osg::Program;
+    phongShaderProgram->addShader( phongVertShader.get() );
+    phongShaderProgram->addShader( phongFragShader.get() );
+    return phongShaderProgram;
+}
+
+
+void	CreateBall(osg::Vec3 pos, osg::ref_ptr<osg::PositionAttitudeTransform> ballTransf)
 {
+	
     osg::ref_ptr<osg::Shader> vertShader2 =
     new osg::Shader( osg::Shader::VERTEX, ballVertexSource );
+    
     osg::ref_ptr<osg::Shader> fragShader2 =
     new osg::Shader( osg::Shader::FRAGMENT, ballFragmentSource );
+    
     osg::ref_ptr<osg::Program> program2 = new osg::Program;
     program2->addShader( fragShader2.get() );
     program2->addShader( vertShader2.get() );
 
+	/*
     osg::Texture2D *ballTexture = new osg::Texture2D;
     ballTexture->setDataVariance(osg::Object::DYNAMIC);
     ballTexture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR_MIPMAP_LINEAR);
     ballTexture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
     ballTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP);
     ballTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP);
+    
     osg::Image *ballImage = osgDB::readImageFile("../Data/PlatonicSurface_Color.jpg");
     ballTexture->setImage(ballImage);
-
+	*/
+	
+	//
+	
+	osg::Material *material = new osg::Material();
+	material->setDiffuse(osg::Material::FRONT,  osg::Vec4(1.0, 0.5, 0.0, 1.0));
+	material->setSpecular(osg::Material::FRONT, osg::Vec4(1.0, 0.5, 0.0, 1.0));
+	material->setAmbient(osg::Material::FRONT,  osg::Vec4(0.1, 0.1, 0.1, 1.0));
+	material->setEmission(osg::Material::FRONT, osg::Vec4(0.0, 0.0, 0.0, 1.0));
+	material->setShininess(osg::Material::FRONT, 100.0);
+	osg::ref_ptr<osg::Node> node = osgDB::readNodeFile("../Data/soccer_ball.obj");
+	node->getOrCreateStateSet()->setMode( GL_LIGHT1, osg::StateAttribute::ON );
+	node->getOrCreateStateSet()->setAttribute(material);
+   
+	node->getOrCreateStateSet()->setAttributeAndModes( createPhongShaderProgram().get() ); 
+	
+	//
+	
+	
+	
     osg::ref_ptr<osg::Node> ballNode = osgDB::readNodeFile("../Data/soccer_ball.obj");
     ballNode->getOrCreateStateSet()->setMode( GL_LIGHT1, osg::StateAttribute::ON );
     osg::StateSet *ballStateSet = ballNode->getOrCreateStateSet();
-    ballStateSet->setTextureAttributeAndModes(0, ballTexture, osg::StateAttribute::ON);
+    //ballStateSet->setTextureAttributeAndModes(0, ballTexture, osg::StateAttribute::ON);
     ballStateSet->setAttributeAndModes( program2.get() );
     ballStateSet->addUniform(new osg::Uniform("texture", 0 ));
 
+/*
     osg::Image *shadowImage = osgDB::readImageFile("../Data/shadow.png");
     osg::ref_ptr<osg::Texture2D> shadowTexture = new osg::Texture2D(shadowImage);
     osg::ref_ptr<osg::StateSet> shadowStateSet = new osg::StateSet();
@@ -196,14 +264,15 @@ void	CreateBall(osg::ref_ptr<osg::PositionAttitudeTransform> ballTransf,
     shadowTransf->setPosition(osg::Vec3(0,-100,2));
     shadowTransf->setDataVariance( osg::Object::DYNAMIC );
     shadowTransf->setScale(osg::Vec3(8,8,2));
+    */
 
     ballTransf->addChild(ballNode);
     ballTransf->setScale(osg::Vec3(.05,.05,.05));
-    ballTransf->setPosition(osg::Vec3(0,-100,5));
+    ballTransf->setPosition(pos);
     ballTransf->setAttitude(osg::Quat(0.0f, osg::Y_AXIS, 0.0f, osg::Z_AXIS, 0.0f, osg::X_AXIS));
     ballTransf->setDataVariance( osg::Object::DYNAMIC );
 
-    static_cast<osg::Node*>(ballTransf)->setUpdateCallback( new BallCallback(shadowTransf.get()) );
+    //static_cast<osg::Node*>(ballTransf)->setUpdateCallback( new BallCallback(shadowTransf.get()) );
 
 }
 
@@ -847,6 +916,35 @@ void trimCloudByYX( pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated, pcl::
 }
 
 
+void trimCloudByYXNEW( pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_rotated, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed,
+                                                       double val_y, std::vector<double>& dimensions, bool trim_above){
+
+    //filtrar pontos com altura(y) superior a um treshold
+    //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_trimmed (new pcl::PointCloud<pcl::PointXYZRGBA>);
+
+    //pegar nos pontos da nuvem rodada que tao no segmento vertical da mesa, e colocar numa nuvem nova cloud_rotated_2
+    for (size_t i = 0; i < cloud_rotated->points.size(); i++){
+        if ( cloud_rotated->points[i].x > dimensions.at(0) && cloud_rotated->points[i].x < dimensions.at(1)
+                && cloud_rotated->points[i].z > dimensions.at(2)+0.2 && cloud_rotated->points[i].z < dimensions.at(3)){
+            if(trim_above && cloud_rotated->points[i].y < val_y){
+
+                cloud_trimmed->points.push_back (cloud_rotated->points[i]);
+
+            }if(trim_above==false && cloud_rotated->points[i].y > val_y){
+
+                cloud_trimmed->points.push_back (cloud_rotated->points[i]);
+
+            }
+        }
+
+    }
+
+    cloud_trimmed->width = 1;
+    cloud_trimmed->height = cloud_trimmed->points.size();
+
+}
+
+
 
 
 
@@ -946,7 +1044,8 @@ void getObjectInHand(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_only, pcl
 
 
 void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& cloud_arm_w_object, std::vector<double>& dimensions,
-                   double camera_pitch, double camera_roll, double camera_height, bool &isEraser){
+                   double camera_pitch, double camera_roll, double camera_height, bool &isEraser, bool &ha_maos){
+
 
     pcl::PCDWriter writer;
     //roda e ajusta a nuvem para ficar melhor, e devove a cloud_rotated
@@ -964,7 +1063,7 @@ void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, pcl::PointC
    // std::cout << "taansadmanho 3 " << cloud_rotated->points.size() << "  tamanho " << std::endl;
 
 
-    trimCloudByYX(cloud_rotated ,cloud_objects_w_arm,-0.005 , dimensions, true);
+    trimCloudByYXNEW(cloud_rotated ,cloud_objects_w_arm,-0.003 , dimensions, true);
 
 
    // writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_objects_w_arm.pcd", *cloud_objects_w_arm, true);
@@ -972,6 +1071,18 @@ void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, pcl::PointC
     //agora temos o cluster maior, que é o braço
     //pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_only (new pcl::PointCloud<pcl::PointXYZRGBA>);
     cloud_cluster(cloud_objects_w_arm, cloud_arm_w_object);
+
+    if(cloud_arm_w_object->points.size()<40){
+        ha_maos=false;
+        text_n_hands->setText("Hands: 0");
+         text_isPointing->setText("Is Pointing: NO");
+    }if(cloud_arm_w_object->points.size()>40){
+        ha_maos=true;
+        text_n_hands->setText("Hands: 1");
+        text_isPointing->setText("Is Pointing: YES");
+    }
+
+
 
     writer.write<pcl::PointXYZRGBA> ("Out/out_cloud_arm_w_object.pcd", *cloud_arm_w_object, true);
 
@@ -982,10 +1093,13 @@ void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, pcl::PointC
     getObjectInHand(cloud_arm_w_object, cloud_object_in_hand);
 
     if(cloud_object_in_hand->points.size()>100){
+        text_isEraser->setText("Object in Hand: Eraser");
+        text_isPointing->setText("Is Pointing: NO");
         //APAGADOR tá com 117 pts
         isEraser=true;
 
     } if(cloud_object_in_hand->points.size()<=100){
+        text_isEraser->setText("Object in Hand: Pen");
         //CANETA ta com 76 pts
         isEraser=false;
     }
@@ -999,8 +1113,12 @@ void handDetection(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, pcl::PointC
 }
 
 
-void detectObjectHeight(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w_object, bool isEraser, bool& isTouchingTable, int& touching_point_index){
+void detectObjectHeight(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w_object, bool isEraser, bool& isTouchingTable, int& touching_point_index, bool& ha_maos){
 
+    if(ha_maos){
+        text_isTouchingTable->setText("Is Touching Table: YES");
+
+    }
    touching_point_index=-1;
    int closest_index;
    double y_min=-100000;
@@ -1013,18 +1131,25 @@ void detectObjectHeight(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w_obje
         }
     }
 
-    if(y_min>-0.05){
+    if(y_min>-0.35){
         std::cout << "Está a tocar na mesa com y minimo :" << y_min << "  !! " << std::endl;
         isTouchingTable=true;
+        text_isTouchingTable->setText("Is Touching Table: YES");
+        text_isPointing->setText("Is Pointing: NO");
+
         //registar posicao
         touching_point_index=closest_index;
     }else{
         std::cout << "Não ta a tocar na mesa, o y minimo :" << y_min << " !!" << std::endl;
+        text_isTouchingTable->setText("Is Touching Table: NO");
         isTouchingTable=false;
         touching_point_index=closest_index;
     }
 
 
+    if(!ha_maos){
+        text_isTouchingTable->setText("Is Touching Table: NO");
+    }
 
 
 
@@ -1035,6 +1160,7 @@ void detectObjectHeight(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w_obje
 void obtainArmPointingVector(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w_object, int lowest_index, bool isTouchingTable, osg::Vec3& vector){
 
     if(!isTouchingTable){
+
 
         int highest_index;
         double y_max=100000;
@@ -1226,6 +1352,7 @@ void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTab
             //nao ta a apontar para nenhuma cor
             //podemos por aqui um boolean para saber se ta a apontar para um dos
             //objetos ou não
+            text_isPointing->setText("Is Pointing: NO");
 
         }
 
@@ -1241,6 +1368,8 @@ void parametricDetection(osg::Vec3 vector,  osg::Vec3 o_point,bool isTouchingTab
             writer.write<pcl::PointXYZRGB> ("Out/out_vetor_cloud.pcd", *vetor_cloud, true);
 
         if(isConfirmating){
+            text_isPointing->setText("Is Pointing: YES");
+            text_n_hands->setText("Hands: 2");
             for(int i=0;i<clusters_vector.size();i++){
                 if(i!=cluster_index ){
                     for(int j=0; j<clusters_vector[i]->points.size();j++){
@@ -1281,8 +1410,10 @@ void detectSecondHand(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_in, bool& is
 
         if(clusters_vector.size()>1){
             std::cout << "é uma núvem de confirmação de cor" << std::endl;
+            text_isPointing->setText("Is Pointing: YES");
             isConfirmating=true;
         }else{
+            //text_isPointing->setText("Is Pointing: NO");
             std::cout << "NÃO é uma núvem de confirmação de cor" << std::endl;
             isConfirmating=false;
         }
@@ -1317,24 +1448,19 @@ void rotate_cluster_vector(std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr>&
 
 }
 
+
 //cria as coordenadas 2D da projecao do cluster
-void calculate_bi_dimensional_proj(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster, std::vector<double>& coordinates){
+void calculate_bi_dimensional_proj(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_cluster, int i, osg::Vec3& ponto){
 
-    for(int i =0; i<cloud_cluster->points.size(); i++){
+				float x = ((cloud_cluster->points[i].x+2)/6.0)*255.0;
 
-        double x3d = cloud_cluster->points[i].x;
-        double y3d = cloud_cluster->points[i].y;
-        double z3d = cloud_cluster->points[i].z;
+                float y = ((cloud_cluster->points[i].y+2)/6.0)*255.0;
 
-        double x2d=(2*x3d)/(z3d);
-        double y2d=(2*y3d)/(z3d);
+                float z = (cloud_cluster->points[i].z/10.0)*255.0;
 
-        coordinates.push_back(x2d);
-        coordinates.push_back(y2d);
-
-
-    }
-
+   
+		ponto.set(x, y, z);
+		std::cout << "PONTO ::::: " << x << " " << y << " " << z << std::endl;
 
 }
 
@@ -1386,17 +1512,17 @@ void replacePixels(int cluster_index,  std::vector<pcl::PointCloud<pcl::PointXYZ
     }*/
 
 
-    for(long coord_iterator = 0 ; coord_iterator < coordinates.size() ; coord_iterator+=2){
+   /* for(long coord_iterator = 0 ; coord_iterator < coordinates.size() ; coord_iterator+=2){
 
-      /*  data[(long)(coordinates[coord_iterator])]= data_background[(long)(coordinates[coord_iterator])];
+        data[(long)(coordinates[coord_iterator])]= data_background[(long)(coordinates[coord_iterator])];
         data[(long)(coordinates[coord_iterator])+1]= data_background[(long)(coordinates[coord_iterator])+1];
-        data[(long)(coordinates[coord_iterator])+2]= data_background[(long)(coordinates[coord_iterator])+2];*/
+        data[(long)(coordinates[coord_iterator])+2]= data_background[(long)(coordinates[coord_iterator])+2];
 
         data[coord_iterator]= clusters_vector[0]->points[0].r;
         data[coord_iterator+1]= clusters_vector[0]->points[0].g;
         data[coord_iterator+2]= clusters_vector[0]->points[0].b;
 
-    }
+    }*/
 
 }
 
@@ -1596,6 +1722,11 @@ osg::ref_ptr<osg::Camera> createHUDCamera( double left, double right, double bot
     return camera;
 }
 
+
+
+
+
+
 osgText::Text* createText( const osg::Vec3& pos, const std::string& content, float size ){
     osg::ref_ptr<osgText::Font> g_font = osgText::readFontFile("fonts/arial.ttf");
     osg::ref_ptr<osgText::Text> text = new osgText::Text;
@@ -1609,19 +1740,54 @@ osgText::Text* createText( const osg::Vec3& pos, const std::string& content, flo
     return text.release();
 }
 
-osg::ref_ptr<osg::Camera> createHUD(){
+osg::ref_ptr<osg::Camera> createHUD( std::vector<double> dimensions,
+                                        std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector){
 
     // the geode responsible for storing the text (which is a form of geometry)
-    osg::ref_ptr<osg::Geode> textGeode = new osg::Geode;
+    //osg::ref_ptr<osg::Geode> textGeode = new osg::Geode;
     // let us associate the tet to the geode (the text is created in other function; check it out
-    textGeode->addDrawable( createText(osg::Vec3(150.0f, 500.0f, 0.0f),"RMA, ISCTE/IUL", 20.0f) );
-    
-    // the second text will be made dynamic, so we use a global variable "textFrames" to store it
-    textFrames = createText(osg::Vec3(150.0f, 400.0f, 0.0f), "Frame 0", 20.0f);
-    // associating this new text to the geode
-    textGeode->addDrawable(textFrames);
 
-    //>>>TRY: create another text and add to the screen ...
+    double width = dimensions[1]-dimensions[0];
+
+    double length = dimensions[3] - dimensions[2];
+
+    std::string w_s=boost::to_string(width);
+    std::string l_s=boost::to_string(length);
+    std::string dim1= w_s+ " x ";
+    std::string dim= dim1+ l_s;
+
+
+    std::string n_objs = boost::to_string(clusters_vector.size());
+
+
+
+    for(int i = 0 ; i< clusters_vector.size() ; i++){
+        std::string text1="Object " + boost::to_string(i);
+        std::string r = boost::to_string((int)(clusters_vector[i]->points[0].r))+",";
+        std::string g = boost::to_string((int)(clusters_vector[i]->points[0].g))+",";
+        std::string b = boost::to_string((int)(clusters_vector[i]->points[0].b))+",";
+        std::string rg = r+g;
+        std::string rgb=rg+b;
+        std::string color = ", Color: "+rgb;
+        std::string objectColor=text1+color;
+
+        float f = 660.0f - i*30;
+
+        textGeode->addDrawable( createText(osg::Vec3(50.0f, f, 0.0f), objectColor, 15.0f) );
+    }
+
+    textGeode->addDrawable( createText(osg::Vec3(50.0f, 750.0f, 0.0f),"Table Dimensions: "+dim, 15.0f) );
+    textGeode->addDrawable( createText(osg::Vec3(50.0f, 720.0f, 0.0f),"Objects: "+n_objs , 15.0f) );
+
+
+    // the second text will be made dynamic, so we use a global variable "textFrames" to store it
+    //textFrames = createText(osg::Vec3(150.0f, 400.0f, 0.0f), "Frame 0", 20.0f);
+    // associating this new text to the geode
+    //textGeode->addDrawable(textFrames);
+
+
+
+
 
     // calling a function (check it out) to create an orthographic camera, which will be rendered on the top of the viewing camera.
     // this camera will have as its single child the geode we've just created; this way, this camera will only see the two texts.
@@ -1786,6 +1952,20 @@ int main(int argsc, char** argsv){
 
 
 
+    text_isEraser = createText(osg::Vec3(50.0f, 690.0f, 0.0f), "Object in hand : None", 15.0f);
+    textGeode->addDrawable(text_isEraser);
+
+    text_n_hands = createText(osg::Vec3(750.0f, 750.0f, 0.0f), "Hands: 0", 15.0f);
+    textGeode->addDrawable(text_n_hands);
+
+    text_isTouchingTable = createText(osg::Vec3(750.0f, 720.0f, 0.0f), "Touching the table: NO", 15.0f);
+    textGeode->addDrawable(text_isTouchingTable);
+
+
+
+    text_isPointing = createText(osg::Vec3(750.0f, 690.0f, 0.0f), "Is Pointing: ", 15.0f);
+    textGeode->addDrawable(text_isPointing);
+
 
 
 
@@ -1815,15 +1995,16 @@ int main(int argsc, char** argsv){
 
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_arm_w_object (new pcl::PointCloud<pcl::PointXYZRGBA>);
     bool isEraser;
-
-    handDetection(cloud_in_arg3, cloud_arm_w_object, dimensions, camera_pitch, camera_roll, camera_height, isEraser);
+    bool ha_maos;
+    handDetection(cloud_in_arg3, cloud_arm_w_object, dimensions, camera_pitch, camera_roll, camera_height, isEraser, ha_maos);
     std::cout << "LOLOL " << cloud_arm_w_object->size() << "   WOWOWO" << std::endl;
 
     //passo 5, deteta se o objeto (caneta ou apagar) ta a tocar ou nao na mesa
     bool isTouchingTable=false;
 
     int touching_point_index;
-    detectObjectHeight(cloud_arm_w_object, isEraser, isTouchingTable, touching_point_index);
+
+    detectObjectHeight(cloud_arm_w_object, isEraser, isTouchingTable, touching_point_index, ha_maos);
     if(touching_point_index==-1){
         //quer dizer que deu merda
     }
@@ -1855,7 +2036,8 @@ int main(int argsc, char** argsv){
 
     osg::Vec3 selected_color;
     if(isConfirmating){
-        selected_color=color;
+
+        text_isPointing->setText("Is Pointing: YES.");
     }
 
 
@@ -1863,15 +2045,15 @@ int main(int argsc, char** argsv){
 
     //clean_n_rotate_cloud(cloud_in_arg3, cloud_in_arg3_rotated,camera_pitch, camera_roll, camera_height);
 
-    std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector_rotated;
-    rotate_cluster_vector(clusters_vector, clusters_vector_rotated,camera_pitch, camera_roll, camera_height);
+    //std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> clusters_vector_rotated;
+   // rotate_cluster_vector(clusters_vector, clusters_vector_rotated,camera_pitch, camera_roll, camera_height);
 
-    pcl::PCDWriter writer2;
-    writer2.write<pcl::PointXYZRGBA> ("Out/out_um_cluster.pcd", *(clusters_vector_rotated[0]), true);
+    //pcl::PCDWriter writer2;
+    //writer2.write<pcl::PointXYZRGBA> ("Out/out_um_cluster.pcd", *(clusters_vector_rotated[0]), true);
 
     //unsigned char* data_cluster = (unsigned char*)calloc(size,sizeof(unsigned char));
-    std::vector<double> coordinates;
-    calculate_bi_dimensional_proj(clusters_vector_rotated[cluster_index], coordinates);
+    //std::vector<double> coordinates;
+    //calculate_bi_dimensional_proj(clusters_vector_rotated[cluster_index], coordinates);
 
     //std::cout << " coordenadas" << ", "<< coordinates.size() << " | "<< " quantos pontos " << ", "<< clusters_vector_rotated[cluster_index]->points.size() <<std::endl;
 
@@ -1945,8 +2127,15 @@ int main(int argsc, char** argsv){
    osg::ref_ptr<osg::PositionAttitudeTransform> ballTransf = new osg::PositionAttitudeTransform;
 
    osg::ref_ptr<osg::PositionAttitudeTransform> shadowTransf = new osg::PositionAttitudeTransform;
+   
+      
+   
+   osg::Vec3 ponto2D;
+   
+   calculate_bi_dimensional_proj(cloud_arm_w_object, touching_point_index, ponto2D);
+   
 
-  CreateBall(ballTransf, shadowTransf);
+  CreateBall(ponto2D ,ballTransf);
 
 
     // run a controller to allow the user to control the ball with the keyboard
@@ -1959,9 +2148,14 @@ int main(int argsc, char** argsv){
 
     camera2->addChild( shadowTransf );
 
+
+    //dimensions, clusters_vector, isConfirmating, isTouchingTable, isEraser,
     //adicionei
-    osg::ref_ptr<osg::Camera> hud = createHUD();
+
+    osg::ref_ptr<osg::Camera> hud = createHUD(dimensions, clusters_vector);
 	root->addChild( hud.get() );
+
+
 
     // create a root's viewer
     //34.
