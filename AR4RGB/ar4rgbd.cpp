@@ -27,6 +27,8 @@
 #include <osg/AlphaFunc>
 #include <osgGA/GUIEventHandler>
 #include <osg/ShapeDrawable>
+#include <osgText/Font>
+#include <osgText/Text>
 
 
 #include <pcl/io/pcd_io.h>
@@ -68,6 +70,8 @@
 #include <sstream>
 
 pcl::visualization::PCLVisualizer *viewer;
+//adicionei
+osg::ref_ptr<osgText::Text> textFrames;
 //double dim_vec[4];
 
 static const char* textureVertexSource = {
@@ -1578,6 +1582,58 @@ void	createOrthoTexture(osg::ref_ptr<osg::Geode> orthoTextureGeode,
    orthoTextureGeode->addDrawable( quad.get() );
 }
 
+// this function creates an orthographic camera that will be used as HUD
+osg::ref_ptr<osg::Camera> createHUDCamera( double left, double right, double bottom, double top ){
+    osg::ref_ptr<osg::Camera> camera = new osg::Camera;
+    // stating that this camera has a global position and, thus, not changeable by the transform hierarchy
+    camera->setReferenceFrame( osg::Transform::ABSOLUTE_RF );
+    camera->setClearMask( GL_DEPTH_BUFFER_BIT );
+    // the next property ensures that the data rendered by this camera is overlaid on the output of other cameras
+    camera->setRenderOrder( osg::Camera::POST_RENDER, 1);
+    camera->setAllowEventFocus( false );
+    // stating that this camera is orthographic
+    camera->setProjectionMatrix(osg::Matrix::ortho2D(left, right, bottom, top) );
+    return camera;
+}
+
+osgText::Text* createText( const osg::Vec3& pos, const std::string& content, float size ){
+    osg::ref_ptr<osgText::Font> g_font = osgText::readFontFile("fonts/arial.ttf");
+    osg::ref_ptr<osgText::Text> text = new osgText::Text;
+    text->setFont( g_font.get() );
+    text->setCharacterSize( size );
+    text->setAxisAlignment( osgText::TextBase::XY_PLANE );
+    text->setPosition( pos );
+    text->setText( content );
+    // tell the system that the texto will be changing
+    text->setDataVariance(osg::Object::DYNAMIC);
+    return text.release();
+}
+
+osg::ref_ptr<osg::Camera> createHUD(){
+
+    // the geode responsible for storing the text (which is a form of geometry)
+    osg::ref_ptr<osg::Geode> textGeode = new osg::Geode;
+    // let us associate the tet to the geode (the text is created in other function; check it out
+    textGeode->addDrawable( createText(osg::Vec3(150.0f, 500.0f, 0.0f),"RMA, ISCTE/IUL", 20.0f) );
+    
+    // the second text will be made dynamic, so we use a global variable "textFrames" to store it
+    textFrames = createText(osg::Vec3(150.0f, 400.0f, 0.0f), "Frame 0", 20.0f);
+    // associating this new text to the geode
+    textGeode->addDrawable(textFrames);
+
+    //>>>TRY: create another text and add to the screen ...
+
+    // calling a function (check it out) to create an orthographic camera, which will be rendered on the top of the viewing camera.
+    // this camera will have as its single child the geode we've just created; this way, this camera will only see the two texts.
+    osg::ref_ptr<osg::Camera> hudCamera = createHUDCamera(0, 1024, 0, 768);
+    // attaching the text geode to the camera
+    hudCamera->addChild( textGeode.get() );
+    // stating that there should be no illumination effects associated to this camera (we just want to see the text with flat shading)
+    hudCamera->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF );
+
+    // return the camera object to be later on added to the scene graph
+    return hudCamera;
+}
 
 
 
@@ -1903,6 +1959,9 @@ int main(int argsc, char** argsv){
 
     camera2->addChild( shadowTransf );
 
+    //adicionei
+    osg::ref_ptr<osg::Camera> hud = createHUD();
+	root->addChild( hud.get() );
 
     // create a root's viewer
     //34.
